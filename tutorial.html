@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台灣夜市消消樂｜新手教學</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@700;900&family=Zen+Maru+Gothic:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --font-balloon: 'Fredoka', 'Zen Maru Gothic', 'Yuanti TC', '蘋方-繁', 'Microsoft JhengHei', cursive, sans-serif;
+        }
+
+        /* ========== 共用版面 ========== */
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #12081c;
+            color: #fff;
+            font-family: var(--font-balloon);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+            /* 夜市燈光漸層背景 */
+            background-image:
+                radial-gradient(ellipse at 20% 10%, rgba(255, 80, 50, 0.35), transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(255, 200, 40, 0.25), transparent 45%),
+                radial-gradient(ellipse at 50% 100%, rgba(80, 40, 160, 0.45), transparent 55%),
+                linear-gradient(#1a0a28, #0b0614 70%);
+        }
+
+        /* 畫面切換：一次只顯示一個畫面 */
+        .screen {
+            display: none;
+            width: 100%;
+            max-width: 640px;
+            padding: 24px 16px;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* 遊戲首頁：整頁換成 首頁.png，只保留原本三顆按鈕 */
+        #home-screen {
+            max-width: none;
+            width: 100%;
+            min-height: 100vh;
+            padding: 0 16px 24vh;
+            justify-content: flex-end;
+            background-image: url('assets/images/bg-home.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        /* 遊戲核心頁：背景換成 逢甲.png */
+        #game-screen {
+            max-width: none;
+            width: 100%;
+            min-height: 100vh;
+            background-image: url('assets/images/bg-fengjia.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        /* ========== 標題與按鈕 ========== */
+        .home-title {
+            font-family: var(--font-balloon);
+            font-size: clamp(30px, 6.5vw, 44px);
+            font-weight: 900;
+            margin: 8px 0 6px;
+            color: #fff8d0;
+            letter-spacing: 2px;
+            -webkit-text-stroke: 4px #5c2000;
+            paint-order: stroke fill;
+            text-shadow: 0 4px 0 #3a1000, 0 0 18px #ff5a3c, 0 0 28px #ffc83c;
+        }
+
+        .home-subtitle {
+            margin: 0 0 24px;
+            font-size: 16px;
+            color: #ffe7a8;
+        }
+
+        .btn {
+            display: block;
+            width: min(300px, 82vw);
+            margin: 12px auto;
+            padding: 16px 22px;
+            font-family: var(--font-balloon);
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            color: #fff;
+            background: linear-gradient(#ffd76a, #ff9a2e);
+            border: 4px solid #fff;
+            border-radius: 18px;
+            cursor: pointer;
+            text-shadow: 0 2px 0 rgba(0, 0, 0, 0.28);
+            box-shadow: 0 6px 0 #b86a12, 0 10px 22px rgba(0, 0, 0, 0.4);
+            transition: transform 0.12s ease, filter 0.12s ease;
+        }
+
+        .btn:hover {
+            transform: scale(1.05) translateY(-1px);
+            filter: brightness(1.08);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(#b48aff, #6a3dff);
+            color: #fff;
+            border-color: #f0e4ff;
+            box-shadow: 0 6px 0 #3d1a9a, 0 10px 22px rgba(0, 0, 0, 0.4);
+        }
+
+        /* 首頁三顆選項：對齊示意圖的藍 / 紫立體按鈕 */
+        #home-screen #btn-start {
+            background: linear-gradient(#5ad2ff, #1a78ff);
+            border-color: #e8f7ff;
+            box-shadow: 0 7px 0 #0d4aa8, 0 12px 26px rgba(10, 40, 120, 0.55);
+        }
+
+        #home-screen #btn-levels,
+        #home-screen #btn-howto {
+            background: linear-gradient(#c08bff, #7a3dff);
+            border-color: #f4e8ff;
+            box-shadow: 0 7px 0 #4a1aa0, 0 12px 26px rgba(60, 20, 120, 0.55);
+        }
+
+        .btn-ghost {
+            background: linear-gradient(#ffe27a, #ffb03a);
+            color: #3a1200;
+            border: 4px solid #fff8d0;
+            box-shadow: 0 5px 0 #b86a12, 0 8px 18px rgba(0, 0, 0, 0.35);
+            width: auto;
+            min-width: 160px;
+            margin-top: 18px;
+            text-shadow: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(#ffd76a, #ff9a2e);
+            color: #2a1200;
+            border: 2px solid #fff3c2;
+            box-shadow: 0 0 16px rgba(255, 160, 40, 0.5);
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            filter: brightness(1.15);
+        }
+
+        .btn:disabled,
+        .level-card.locked {
+            cursor: not-allowed;
+            filter: grayscale(0.6);
+            opacity: 0.7;
+            transform: none;
+        }
+
+        /* ========== 關卡卡片 ========== */
+        .level-list {
+            width: 100%;
+            max-width: 360px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 12px 0 8px;
+        }
+
+        .level-card {
+            text-align: left;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 2px solid #ffd76a;
+            background: rgba(30, 10, 20, 0.75);
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .level-card strong {
+            display: block;
+            font-size: 18px;
+            color: #ffd76a;
+        }
+
+        .level-card small {
+            color: #ccc;
+        }
+
+        /* ========== 遊戲畫面與棋盤樣式 ========== */
+        #game-screen::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: rgba(10, 4, 18, 0.38);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        #game-screen > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .game-title {
+            font-family: var(--font-balloon);
+            font-size: clamp(26px, 5vw, 40px);
+            font-weight: 900;
+            margin: 4px 0 14px;
+            padding: 10px 28px;
+            color: #fff8c8;
+            letter-spacing: 2px;
+            -webkit-text-stroke: 4px #5c2000;
+            paint-order: stroke fill;
+            text-shadow: 0 4px 0 #3a1000, 0 0 16px rgba(255, 200, 60, 0.7);
+            background: linear-gradient(#ffb347, #ff6a2a 55%, #e84a1a);
+            border: 4px solid #fff3c2;
+            border-radius: 22px;
+            box-shadow: 0 6px 0 #8a2e00, 0 0 22px rgba(255, 140, 40, 0.55);
+        }
+
+        #hud {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin: 0 0 16px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        #score-board,
+        .hud-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-balloon);
+            font-size: 18px;
+            font-weight: 900;
+            color: #ffe27a;
+            margin: 0;
+            padding: 8px 18px;
+            background: rgba(18, 8, 16, 0.88);
+            border: 4px solid #ffd76a;
+            border-radius: 999px;
+            box-shadow: 0 0 0 3px #7a3a00, 0 6px 16px rgba(0, 0, 0, 0.45), inset 0 0 12px rgba(255, 210, 80, 0.18);
+        }
+
+        #score-board #score,
+        .hud-chip span {
+            color: #fff8d0;
+            min-width: 2ch;
+        }
+
+        #result-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 80;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+            background: rgba(10, 4, 18, 0.72);
+        }
+
+        #result-overlay.show {
+            display: flex;
+        }
+
+        .result-card {
+            width: min(420px, 92vw);
+            padding: 28px 22px 22px;
+            text-align: center;
+            background: linear-gradient(#3a2218, #1a0e12);
+            border: 4px solid #ffd76a;
+            border-radius: 20px;
+            box-shadow: 0 0 0 4px #8a3a00, 0 12px 32px rgba(0, 0, 0, 0.55);
+        }
+
+        .result-card h2 {
+            margin: 0 0 8px;
+            font-size: 30px;
+            color: #fff8d0;
+            -webkit-text-stroke: 3px #5c2000;
+            paint-order: stroke fill;
+        }
+
+        .result-card p {
+            margin: 0 0 18px;
+            color: #ffe7a8;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        #board-wrap {
+            position: relative;
+            width: 520px;
+            max-width: 92vw;
+            aspect-ratio: 1 / 1;
+            padding: 12px;
+            background: linear-gradient(#3a2218, #1a0e12);
+            border: 6px solid #ffd76a;
+            border-radius: 20px;
+            box-shadow:
+                0 0 0 4px #8a3a00,
+                0 10px 28px rgba(0, 0, 0, 0.55),
+                0 0 24px rgba(255, 180, 40, 0.35);
+        }
+
+        #board {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            gap: 4px;
+            background-color: #241418;
+            padding: 8px;
+            border-radius: 12px;
+            border: 3px solid #c48a3a;
+            box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.55);
+        }
+
+        #board.busy .tile {
+            pointer-events: none;
+            cursor: default;
+        }
+
+        .tile {
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #2a2a2a;
+            user-select: none;
+            transition: transform 0.1s ease;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .tile img {
+            width: 90%;
+            height: 90%;
+            object-fit: contain;
+            pointer-events: none;
+        }
+
+        .tile.selected {
+            outline: 4px solid #ffee00;
+            transform: scale(0.9);
+        }
+
+        /* 消除與掉落動畫 */
+        .tile.matching {
+            z-index: 3;
+            overflow: visible;
+            animation: tileMatch 380ms ease-in forwards;
+            transition: none;
+            pointer-events: none;
+        }
+
+        .tile.matching img {
+            animation: tileGlow 380ms ease-in forwards;
+        }
+
+        @keyframes tileMatch {
+            0% { transform: scale(1) rotate(0deg); opacity: 1; }
+            22% { transform: scale(1.2) rotate(-8deg); opacity: 1; }
+            100% { transform: scale(0) rotate(18deg); opacity: 0; }
+        }
+
+        @keyframes tileGlow {
+            0% { filter: brightness(1) drop-shadow(0 0 0 transparent); }
+            28% { filter: brightness(2.1) drop-shadow(0 0 10px #fff6b0) drop-shadow(0 0 18px #ffcc44); }
+            100% { filter: brightness(1.6) drop-shadow(0 0 4px #fff); }
+        }
+
+        .tile.tile-drop {
+            animation: tileDrop 450ms cubic-bezier(0.25, 0.82, 0.32, 1) both;
+            transition: none;
+            z-index: 2;
+        }
+
+        .tile.tile-drop-new {
+            animation: tileDropBounce 520ms cubic-bezier(0.22, 0.9, 0.32, 1.18) both;
+            transition: none;
+            z-index: 2;
+        }
+
+        @keyframes tileDrop {
+            from { transform: translateY(var(--drop-from, -48px)); }
+            to { transform: translateY(0); }
+        }
+
+        @keyframes tileDropBounce {
+            0% { transform: translateY(var(--drop-from, -80px)); opacity: 0.88; }
+            72% { transform: translateY(5px); opacity: 1; }
+            86% { transform: translateY(-6px); }
+            100% { transform: translateY(0); }
+        }
+
+        /* 特效層 */
+        #fx-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: visible;
+            z-index: 25;
+        }
+
+        .fx-particle {
+            position: absolute;
+            left: 0;
+            top: 0;
+            font-size: 12px;
+            line-height: 1;
+            will-change: transform, opacity;
+            animation: particleFly 620ms ease-out forwards;
+        }
+
+        .fx-particle.dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #ffe27a;
+            box-shadow: 0 0 6px #ffd76a;
+        }
+
+        .fx-particle.star {
+            font-size: 14px;
+            text-shadow: 0 0 6px #fff;
+        }
+
+        .fx-particle.spark {
+            width: 10px;
+            height: 2px;
+            border-radius: 2px;
+            background: #fff8d0;
+            box-shadow: 0 0 8px #fff;
+        }
+
+        .fx-particle.confetti {
+            width: 10px;
+            height: 14px;
+            background: var(--ccolor, #ff0055);
+            border-radius: 2px;
+            animation: confettiFly 850ms ease-out forwards;
+        }
+
+        .fx-shockwave {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: 4px solid #ffffff;
+            box-shadow: 0 0 25px #ffea00, inset 0 0 15px #ffea00;
+            transform: translate(-50%, -50%) scale(0.2);
+            animation: shockwaveExpand 480ms ease-out forwards;
+        }
+
+        @keyframes shockwaveExpand {
+            0% { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(2.4); opacity: 0; border-width: 1px; }
+        }
+
+        @keyframes particleFly {
+            0% { opacity: 1; transform: translate(-50%, -50%) translate(0, 0) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) translate(var(--px), var(--py)) scale(0.4); }
+        }
+
+        @keyframes confettiFly {
+            0% { opacity: 1; transform: translate(-50%, -50%) translate(0, 0) rotate(0deg) scale(1.3); }
+            100% { opacity: 0; transform: translate(-50%, -50%) translate(var(--px), var(--py)) rotate(720deg) scale(0.3); }
+        }
+
+        .fx-score-pop {
+            position: absolute;
+            left: 50%;
+            top: 16%;
+            transform: translate(-50%, 0) scale(1);
+            font-family: var(--font-balloon);
+            font-size: 38px;
+            font-weight: 900;
+            color: #fff066;
+            -webkit-text-stroke: 4px #5c2000;
+            paint-order: stroke fill;
+            text-shadow: 0 4px 0 #3a1000, 0 6px 10px rgba(0, 0, 0, 0.6);
+            animation: scorePop 650ms cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
+            white-space: nowrap;
+            z-index: 15;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        @keyframes scorePop {
+            0% { opacity: 0; transform: translate(-50%, 15px) scale(0.4, 0.4); }
+            28% { opacity: 1; transform: translate(-50%, 0) scale(1.35, 0.8); }
+            50% { transform: translate(-50%, -10px) scale(0.9, 1.2); }
+            75% { opacity: 1; transform: translate(-50%, -20px) scale(1.05, 0.95); }
+            100% { opacity: 0; transform: translate(-50%, -40px) scale(0.85, 1.05); }
+        }
+
+        .fx-float-word {
+            position: absolute;
+            font-family: var(--font-balloon);
+            font-size: 26px;
+            font-weight: 900;
+            color: #ffffff;
+            -webkit-text-stroke: 3.5px #7a1500;
+            paint-order: stroke fill;
+            text-shadow: 0 3px 0 #420800, 0 4px 8px rgba(0, 0, 0, 0.6);
+            pointer-events: none;
+            will-change: transform, opacity;
+            animation: floatWordUp 620ms cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+            white-space: nowrap;
+            z-index: 30;
+            user-select: none;
+        }
+
+        @keyframes floatWordUp {
+            0% { opacity: 0; transform: translate(-50%, -10%) scale(0.3) rotate(-8deg); }
+            25% { opacity: 1; transform: translate(-50%, -65%) scale(1.4, 0.75) rotate(4deg); }
+            50% { opacity: 1; transform: translate(-50%, -115%) scale(0.85, 1.25) rotate(-2deg); }
+            75% { opacity: 0.95; transform: translate(-50%, -155%) scale(1.05, 0.95) rotate(1deg); }
+            100% { opacity: 0; transform: translate(-50%, -195%) scale(0.85, 1.1) rotate(0deg); }
+        }
+
+        /* 震動效果 */
+        .shake-sm { animation: boardShakeSm 160ms ease-in-out; }
+        .shake-md { animation: boardShakeMd 220ms ease-in-out; }
+        .shake-lg { animation: boardShakeLg 300ms ease-in-out; }
+
+        @keyframes boardShakeSm {
+            0% { transform: translate(0, 0); }
+            25% { transform: translate(-2px, 1.5px); }
+            50% { transform: translate(2px, -2px); }
+            75% { transform: translate(-1.5px, -1px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        @keyframes boardShakeMd {
+            0% { transform: translate(0, 0); }
+            20% { transform: translate(-4px, 3px) scale(1.01); }
+            40% { transform: translate(4px, -3px) scale(0.995); }
+            60% { transform: translate(-3px, 2px) scale(1.005); }
+            80% { transform: translate(2px, -1px); }
+            100% { transform: translate(0, 0) scale(1); }
+        }
+
+        @keyframes boardShakeLg {
+            0% { transform: translate(0, 0) rotate(0deg) scale(1); }
+            15% { transform: translate(-10px, 6px) rotate(-2deg) scale(1.04); }
+            35% { transform: translate(10px, -6px) rotate(2deg) scale(0.96); }
+            55% { transform: translate(-7px, 4px) rotate(-1deg) scale(1.02); }
+            75% { transform: translate(5px, -3px) rotate(1deg); }
+            100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+        }
+
+        /* Combo Banner */
+        #combo-banner {
+            position: absolute;
+            left: 50%;
+            top: 32%;
+            transform: translate(-50%, -50%) scale(0.3);
+            pointer-events: none;
+            z-index: 40;
+            font-family: var(--font-balloon);
+            font-weight: 900;
+            letter-spacing: 3px;
+            white-space: pre;
+            text-align: center;
+            line-height: 1.18;
+            opacity: 0;
+            user-select: none;
+            paint-order: stroke fill;
+        }
+
+        #combo-banner.show {
+            animation: comboPopIn 620ms cubic-bezier(0.175, 0.885, 0.32, 1.35) forwards;
+        }
+
+        @keyframes comboPopIn {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2, 0.2) rotate(-6deg); }
+            28% { opacity: 1; transform: translate(-50%, -50%) scale(1.4, 0.76) rotate(2deg); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(0.88, 1.24) rotate(-1deg); }
+            70% { opacity: 1; transform: translate(-50%, -50%) scale(1.06, 0.96) rotate(1deg); }
+            85% { opacity: 1; transform: translate(-50%, -50%) scale(1, 1) rotate(0deg); }
+            100% { opacity: 0; transform: translate(-50%, -75%) scale(0.92, 1.05) rotate(0deg); }
+        }
+
+        #combo-banner.combo-1 {
+            font-size: 38px;
+            color: #ffe642;
+            -webkit-text-stroke: 5px #4a1c00;
+            text-shadow: 0 4px 0 #2b0e00, 0 8px 14px rgba(0, 0, 0, 0.7);
+        }
+
+        #combo-banner.combo-2 {
+            font-size: 40px;
+            color: #ff9800;
+            -webkit-text-stroke: 5px #421200;
+            text-shadow: 0 4px 0 #260700, 0 8px 16px rgba(255, 120, 0, 0.4), 0 10px 18px rgba(0, 0, 0, 0.8);
+        }
+
+        #combo-banner.combo-3 {
+            font-size: 44px;
+            color: #ff4081;
+            -webkit-text-stroke: 5px #4a0022;
+            text-shadow: 0 4px 0 #2b0013, 0 8px 18px rgba(255, 30, 100, 0.5), 0 10px 20px rgba(0, 0, 0, 0.85);
+        }
+
+        #combo-banner.combo-4 {
+            font-size: 48px;
+            color: #ffeb3b;
+            -webkit-text-stroke: 6px #280345;
+            text-shadow: 0 4px 0 #140024, 0 0 16px rgba(255, 235, 59, 0.8), 0 8px 24px rgba(170, 0, 255, 0.7), 0 12px 24px rgba(0, 0, 0, 0.9);
+        }
+
+        /* ========== 新手教學 (Newcomer) 專屬增強樣式 ========== */
+        .tutorial-dialog {
+            margin-bottom: 14px;
+            padding: 16px 20px;
+            background: rgba(25, 12, 40, 0.95);
+            border: 3px solid #ffd76a;
+            border-radius: 18px;
+            max-width: 520px;
+            width: 95vw;
+            box-shadow: 0 0 25px rgba(255, 215, 100, 0.4), inset 0 0 12px rgba(255, 215, 100, 0.15);
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            position: relative;
+        }
+
+        .tutorial-dialog .avatar {
+            font-size: 46px;
+            animation: bossBounce 1s infinite ease-in-out alternate;
+            filter: drop-shadow(0 0 10px #ffea00);
+        }
+
+        @keyframes bossBounce {
+            0% { transform: translateY(0) scale(1); }
+            100% { transform: translateY(-8px) scale(1.08); }
+        }
+
+        .tutorial-dialog .text-content {
+            flex: 1;
+        }
+
+        .tutorial-dialog h4 {
+            margin: 0 0 4px;
+            color: #ffd76a;
+            font-size: 19px;
+            text-shadow: 0 0 8px rgba(255, 215, 100, 0.6);
+        }
+
+        .tutorial-dialog p {
+            margin: 0;
+            font-size: 16px;
+            color: #f0f0f0;
+            line-height: 1.45;
+        }
+
+        .tile.tutorial-dim {
+            opacity: 0.22;
+            filter: grayscale(0.75) blur(0.5px);
+            pointer-events: none !important;
+        }
+
+        .tile.tutorial-target {
+            z-index: 5;
+            outline: 4px dashed #ffea00;
+            outline-offset: -2px;
+            box-shadow: 0 0 25px #ffea00, inset 0 0 15px #ffea00;
+            animation: superPulse 0.75s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes superPulse {
+            0% { transform: scale(0.92); filter: brightness(1.1); }
+            100% { transform: scale(1.1); filter: brightness(1.6) drop-shadow(0 0 12px #ffffff); }
+        }
+
+        #hand-guide {
+            position: absolute;
+            z-index: 20;
+            pointer-events: none;
+            display: none;
+            transition: all 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .hand-icon {
+            font-size: 48px;
+            filter: drop-shadow(0 0 15px #ffea00) drop-shadow(0 4px 8px rgba(0,0,0,0.8));
+            animation: handTap 0.65s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes handTap {
+            0% { transform: translate(-10px, 10px) scale(1) rotate(0deg); }
+            100% { transform: translate(4px, -4px) scale(1.3) rotate(-12deg); }
+        }
+
+        .pulse-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 70px;
+            height: 70px;
+            border: 3px solid #ffea00;
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0.3);
+            animation: ringExpand 1.2s infinite cubic-bezier(0, 0.2, 0.8, 1);
+            pointer-events: none;
+        }
+
+        @keyframes ringExpand {
+            0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; border-width: 4px; }
+            100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; border-width: 1px; }
+        }
+
+        #arrow-guide {
+            position: absolute;
+            z-index: 15;
+            pointer-events: none;
+            display: none;
+            stroke: #ffea00;
+            stroke-width: 5;
+            stroke-dasharray: 8 6;
+            fill: none;
+            filter: drop-shadow(0 0 8px #ffea00);
+            animation: dashMove 0.8s linear infinite;
+        }
+
+        @keyframes dashMove {
+            to { stroke-dashoffset: -28; }
+        }
+    
+
+        body { min-height: 100vh; }
+        #newcomer-screen { display: flex; }
+        #tut-board.busy .tile { pointer-events: none; cursor: default; }
+        #tut-board .tile.tutorial-dim { opacity: 1; filter: none; }
+        #tut-board .tile.tutorial-target { opacity: 1; }
+
+    </style>
+</head>
+<body>
+
+
+    <!-- ===== 新手教學 ===== -->
+    <section id="newcomer-screen" class="screen" aria-label="新手教學">
+        <h1 class="home-title" style="margin-bottom: 12px;">🎓 夜市攤主實習試煉</h1>
+
+        <!-- 老闆動態對話框 -->
+        <div class="tutorial-dialog">
+            <div class="avatar" id="tut-avatar">🏪</div>
+            <div class="text-content">
+                <h4 id="tut-title">載入中...</h4>
+                <p id="tut-desc">準備好學習夜市消消樂的獨門祕技了嗎？</p>
+            </div>
+        </div>
+
+        <!-- 試煉棋盤與視覺圖層 -->
+        <div id="tut-board-wrap" style="position: relative; width: 520px; max-width: 92vw; aspect-ratio: 1 / 1;">
+            <div id="tut-board" style="width: 100%; height: 100%; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); gap: 4px; background-color: rgba(20, 10, 30, 0.88); padding: 8px; border-radius: 14px; border: 2px solid rgba(255, 200, 80, 0.4); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.85), inset 0 0 20px rgba(255, 200, 80, 0.2);"></div>
+            
+            <!-- 手勢引導與虛線指示箭頭 -->
+            <div id="hand-guide">
+                <div class="pulse-ring"></div>
+                <div class="hand-icon">👆</div>
+            </div>
+            <svg id="arrow-svg" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 14;">
+                <line id="arrow-guide" x1="0" y1="0" x2="0" y2="0" marker-end="url(#arrowhead)" />
+                <defs>
+                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#ffea00" />
+                    </marker>
+                </defs>
+            </svg>
+
+            <div id="tut-fx-layer" style="position: absolute; inset: 0; pointer-events: none; overflow: visible; z-index: 25;"></div>
+            <div id="tut-combo-banner" style="position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%) scale(0.3); pointer-events: none; z-index: 40; font-size: 52px; font-weight: 900; letter-spacing: 3px; white-space: pre; text-align: center; line-height: 1.15; opacity: 0; paint-order: stroke fill; color: #ffeb3b; -webkit-text-stroke: 7px #280345; text-shadow: 0 6px 0 #140024, 0 0 35px rgba(255, 235, 59, 1), 0 0 50px rgba(170, 0, 255, 0.9);"></div>
+        </div>
+
+        <button class="btn btn-ghost" type="button" data-go-home>離開教學</button>
+    </section>
+
+    <script>
+        const BOARD_SIZE = 8;
+        const CANDY_TYPES = [
+            { name: '珍奶', img: 'assets/images/item-boba.png' },
+            { name: '地瓜球', img: 'assets/images/item-sweetpotato.png' },
+            { name: '臭豆腐', img: 'assets/images/item-tofu.png' },
+            { name: '雞排', img: 'assets/images/item-chicken.png' },
+            { name: '蚵仔煎', img: 'assets/images/item-oyster.png' }
+        ];
+
+        // 教學頁自己的路由：離開教學回到團體版首頁。
+        document.addEventListener('DOMContentLoaded', function () {
+            const leaveButtons = document.querySelectorAll('[data-go-home]');
+            leaveButtons.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    window.location.href = 'index.html';
+                });
+            });
+            loadTutStep(1);
+        });
+
+
+        /* =========================================================
+           新手教學 (Newcomer) 試煉邏輯
+           ========================================================= */
+        let tutBoard = [];
+        let currentTutStep = 1;
+        let tutSelectedTile = null;
+        let isTutBusy = false;
+
+        const tutBoardEl = document.getElementById('tut-board');
+        const tutBoardWrap = document.getElementById('tut-board-wrap');
+        const handGuide = document.getElementById('hand-guide');
+        const arrowGuide = document.getElementById('arrow-guide');
+        const tutFxLayer = document.getElementById('tut-fx-layer');
+        const tutComboBanner = document.getElementById('tut-combo-banner');
+
+        function loadTutStep(step) {
+            currentTutStep = step;
+            tutSelectedTile = null;
+
+            if (step === 1) {
+                document.getElementById('tut-avatar').innerText = "🏪";
+                document.getElementById('tut-title').innerText = "步驟 1：基礎 3 連消";
+                document.getElementById('tut-desc').innerHTML = "歡迎！請點擊發光的 <strong style='color:#ffea00;'>珍奶 (4,3)</strong>，再點擊右邊的 <strong style='color:#ffea00;'>地瓜球 (4,4)</strong> 交換連成三連消！";
+
+                tutBoard = [
+                    [0, 1, 2, 3, 4, 0, 1, 2],
+                    [1, 2, 3, 4, 0, 1, 2, 3],
+                    [2, 3, 4, 0, 1, 2, 3, 4],
+                    [3, 4, 0, 1, 2, 3, 4, 0],
+                    [0, 1, 0, 1, 0, 2, 3, 4],
+                    [1, 2, 3, 4, 0, 1, 2, 3],
+                    [2, 3, 4, 0, 1, 2, 3, 4],
+                    [3, 4, 0, 1, 2, 3, 4, 0]
+                ];
+                renderTutBoard([{ r: 4, c: 3 }, { r: 4, c: 4 }]);
+                guideHandTo(4, 3);
+            } else if (step === 2) {
+                document.getElementById('tut-avatar').innerText = "🤩";
+                document.getElementById('tut-title').innerText = "步驟 2：觸發連擊 (Combo)";
+                document.getElementById('tut-desc').innerHTML = "太棒了！現在點擊 <strong style='color:#ffea00;'>雞排 (3,3)</strong> 和上方的 <strong style='color:#ffea00;'>臭豆腐 (2,3)</strong>，製造超狂連鎖爆炸！";
+
+                tutBoard = [
+                    [0, 1, 2, 3, 4, 0, 1, 2],
+                    [1, 2, 3, 2, 0, 1, 2, 3],
+                    [2, 3, 4, 2, 1, 2, 3, 4],
+                    [3, 4, 0, 3, 2, 3, 4, 0],
+                    [0, 1, 2, 2, 0, 2, 3, 4],
+                    [1, 2, 3, 4, 0, 1, 2, 3],
+                    [2, 3, 4, 0, 1, 2, 3, 4],
+                    [3, 4, 0, 1, 2, 3, 4, 0]
+                ];
+                renderTutBoard([{ r: 3, c: 3 }, { r: 2, c: 3 }]);
+                guideHandTo(3, 3);
+            } else if (step === 3) {
+                hideGuides();
+                document.getElementById('tut-avatar').innerText = "🏆";
+                document.getElementById('tut-title').innerText = "🎉 試煉完成！你太強了！";
+                document.getElementById('tut-desc').innerHTML = "你已經完全掌握了夜市消消樂的視覺爆破奧義！準備好開攤賺大錢了嗎？";
+                
+                const dialog = document.querySelector('.tutorial-dialog');
+                dialog.innerHTML = `
+                    <div class="avatar">🏆</div>
+                    <div class="text-content">
+                        <h4 style="color:#ffd76a;">夜市老闆：滿分畢業！</h4>
+                        <p>你已經具備頂級攤主的精神！立刻開始正式遊戲吧！</p>
+                        <button class="btn btn-primary" onclick="window.location.href='index.html?startGame=true'">🚀 正式開攤！</button>
+                    </div>
+                `;
+            }
+        }
+
+        function renderTutBoard(targets = []) {
+            tutBoardEl.innerHTML = '';
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const tile = document.createElement('div');
+                    tile.className = 'tile';
+
+                    const typeIndex = tutBoard[r][c];
+                    if (typeIndex !== null) {
+                        const img = document.createElement('img');
+                        img.src = CANDY_TYPES[typeIndex].img;
+                        img.alt = CANDY_TYPES[typeIndex].name;
+                        tile.appendChild(img);
+                    }
+
+                    tile.dataset.row = r;
+                    tile.dataset.col = c;
+
+                    const isTarget = targets.some(t => t.r === r && t.c === c);
+                    if (targets.length > 0) {
+                        if (isTarget) {
+                            tile.classList.add('tutorial-target');
+                        } else {
+                            tile.classList.add('tutorial-dim');
+                        }
+                    }
+
+                    if (tutSelectedTile && tutSelectedTile.r === r && tutSelectedTile.c === c) {
+                        tile.classList.add('selected');
+                    }
+
+                    tile.addEventListener('click', onTutTileClick);
+                    tutBoardEl.appendChild(tile);
+                }
+            }
+        }
+
+        function guideHandTo(r, c) {
+            const tile = tutBoardEl.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+            if (tile && handGuide) {
+                handGuide.style.display = 'block';
+                const wrapRect = tutBoardWrap.getBoundingClientRect();
+                const tileRect = tile.getBoundingClientRect();
+                const x = tileRect.left - wrapRect.left + tileRect.width / 2;
+                const y = tileRect.top - wrapRect.top + tileRect.height / 2;
+                handGuide.style.left = x + 'px';
+                handGuide.style.top = y + 'px';
+            }
+        }
+
+        function drawArrowGuide(r1, c1, r2, c2) {
+            const t1 = tutBoardEl.querySelector(`[data-row="${r1}"][data-col="${c1}"]`).getBoundingClientRect();
+            const t2 = tutBoardEl.querySelector(`[data-row="${r2}"][data-col="${c2}"]`).getBoundingClientRect();
+            const wrap = tutBoardWrap.getBoundingClientRect();
+
+            arrowGuide.setAttribute('x1', t1.left - wrap.left + t1.width / 2);
+            arrowGuide.setAttribute('y1', t1.top - wrap.top + t1.height / 2);
+            arrowGuide.setAttribute('x2', t2.left - wrap.left + t2.width / 2);
+            arrowGuide.setAttribute('y2', t2.top - wrap.top + t2.height / 2);
+            arrowGuide.style.display = 'block';
+        }
+
+        function hideGuides() {
+            handGuide.style.display = 'none';
+            arrowGuide.style.display = 'none';
+        }
+
+        function onTutTileClick(e) {
+            if (isTutBusy) return;
+            const r = parseInt(e.currentTarget.dataset.row);
+            const c = parseInt(e.currentTarget.dataset.col);
+
+            if (currentTutStep === 1) {
+                if (!tutSelectedTile) {
+                    if (r === 4 && c === 3) {
+                        tutSelectedTile = { r, c };
+                        renderTutBoard([{ r: 4, c: 3 }, { r: 4, c: 4 }]);
+                        guideHandTo(4, 4);
+                        drawArrowGuide(4, 3, 4, 4);
+                    }
+                } else {
+                    if (r === 4 && c === 4) {
+                        hideGuides();
+                        swapTutTiles(4, 3, 4, 4);
+                        triggerTutorialCombo([{ r: 4, c: 2 }, { r: 4, c: 3 }, { r: 4, c: 4 }], 1, () => {
+                            loadTutStep(2);
+                        });
+                    }
+                }
+            } else if (currentTutStep === 2) {
+                if (!tutSelectedTile) {
+                    if (r === 3 && c === 3) {
+                        tutSelectedTile = { r, c };
+                        renderTutBoard([{ r: 3, c: 3 }, { r: 2, c: 3 }]);
+                        guideHandTo(2, 3);
+                        drawArrowGuide(3, 3, 2, 3);
+                    }
+                } else {
+                    if (r === 2 && c === 3) {
+                        hideGuides();
+                        swapTutTiles(3, 3, 2, 3);
+                        triggerTutorialCombo([{ r: 2, c: 3 }, { r: 3, c: 3 }, { r: 4, c: 3 }], 3, () => {
+                            loadTutStep(3);
+                        });
+                    }
+                }
+            }
+        }
+
+        function swapTutTiles(r1, c1, r2, c2) {
+            const temp = tutBoard[r1][c1];
+            tutBoard[r1][c1] = tutBoard[r2][c2];
+            tutBoard[r2][c2] = temp;
+        }
+
+        function getTutTileCenter(r, c) {
+            const tile = tutBoardEl.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+            const wrapRect = tutBoardWrap.getBoundingClientRect();
+            const tileRect = tile.getBoundingClientRect();
+            return {
+                x: tileRect.left - wrapRect.left + tileRect.width / 2,
+                y: tileRect.top - wrapRect.top + tileRect.height / 2
+            };
+        }
+
+        async function triggerTutorialCombo(matches, comboLevel, callback) {
+            isTutBusy = true;
+            tutBoardEl.classList.add('busy');
+
+            tutBoardEl.classList.add('shake-lg');
+            showTutComboBanner(comboLevel);
+
+            const colors = ['#ff0055', '#ffea00', '#00e5ff', '#76ff03', '#e040fb'];
+            matches.forEach((pos, idx) => {
+                const center = getTutTileCenter(pos.r, pos.c);
+
+                const wave = document.createElement('div');
+                wave.className = 'fx-shockwave';
+                wave.style.left = center.x + 'px';
+                wave.style.top = center.y + 'px';
+                tutFxLayer.appendChild(wave);
+                setTimeout(() => wave.remove(), 480);
+
+                for (let i = 0; i < 8; i++) {
+                    const star = document.createElement('div');
+                    star.className = 'fx-particle star';
+                    star.textContent = '✦';
+                    star.style.left = center.x + 'px';
+                    star.style.top = center.y + 'px';
+                    const angle = (Math.PI * 2 * i) / 8;
+                    const dist = 45 + Math.random() * 30;
+                    star.style.setProperty('--px', Math.cos(angle) * dist + 'px');
+                    star.style.setProperty('--py', Math.sin(angle) * dist + 'px');
+                    tutFxLayer.appendChild(star);
+                    setTimeout(() => star.remove(), 650);
+                }
+
+                for (let k = 0; k < 6; k++) {
+                    const cft = document.createElement('div');
+                    cft.className = 'fx-particle confetti';
+                    cft.style.left = center.x + 'px';
+                    cft.style.top = center.y + 'px';
+                    cft.style.setProperty('--ccolor', colors[Math.floor(Math.random() * colors.length)]);
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = 50 + Math.random() * 60;
+                    cft.style.setProperty('--px', Math.cos(angle) * dist + 'px');
+                    cft.style.setProperty('--py', Math.sin(angle) * dist + 'px');
+                    tutFxLayer.appendChild(cft);
+                    setTimeout(() => cft.remove(), 850);
+                }
+
+                const floatWord = document.createElement('div');
+                floatWord.className = 'fx-float-word';
+                floatWord.textContent = comboLevel > 1 ? '老闆哭了！' : '好呷！';
+                floatWord.style.left = center.x + 'px';
+                floatWord.style.top = center.y + 'px';
+                floatWord.style.animationDelay = (idx * 50) + 'ms';
+                tutFxLayer.appendChild(floatWord);
+                setTimeout(() => floatWord.remove(), 750);
+
+                const tileEl = tutBoardEl.querySelector(`[data-row="${pos.r}"][data-col="${pos.c}"]`);
+                if (tileEl) tileEl.classList.add('matching');
+            });
+
+            await new Promise(r => setTimeout(r, 700));
+
+            tutBoardEl.classList.remove('shake-lg', 'busy');
+            isTutBusy = false;
+            if (callback) callback();
+        }
+
+        function showTutComboBanner(combo) {
+            tutComboBanner.className = '';
+            void tutComboBanner.offsetWidth;
+            if (combo === 1) {
+                tutComboBanner.textContent = '完美的消除！';
+            } else {
+                tutComboBanner.textContent = 'COMBO ×3！\n橫掃夜市神手！';
+            }
+            tutComboBanner.classList.add('show');
+            setTimeout(() => tutComboBanner.classList.remove('show'), 850);
+        }
+    </script>
+</body>
+</html>

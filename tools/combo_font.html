@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>夜市消消樂 - COMBO 樣式調校預覽</title>
+    <!-- 引入可愛氣球胖胖字體 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@700;900&family=Zen+Maru+Gothic:wght@700;900&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --font-balloon: 'Fredoka', 'Zen Maru Gothic', 'Yuanti TC', '蘋方-繁', 'Microsoft JhengHei', cursive, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #12081c;
+            color: #fff;
+            font-family: var(--font-balloon);
+            min-height: 100vh;
+            margin: 0;
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* 與遊戲同款夜市夜景漸層 */
+            background-image:
+                radial-gradient(ellipse at 20% 10%, rgba(255, 80, 50, 0.35), transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(255, 200, 40, 0.25), transparent 45%),
+                radial-gradient(ellipse at 50% 100%, rgba(80, 40, 160, 0.45), transparent 55%),
+                linear-gradient(#1a0a28, #0b0614 70%);
+        }
+
+        h1 {
+            font-size: 26px;
+            margin-bottom: 24px;
+            text-shadow: 0 0 10px #ff5a3c;
+            letter-spacing: 2px;
+        }
+
+        .section-title {
+            color: #ffd76a;
+            font-size: 16px;
+            margin: 15px 0 8px;
+            text-align: center;
+            width: 100%;
+            max-width: 860px;
+        }
+
+        /* ===== 一字排開展示網格 ===== */
+        .showcase-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            width: 100%;
+            max-width: 860px;
+            margin-bottom: 36px;
+        }
+
+        .showcase-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 215, 100, 0.25);
+            border-radius: 12px;
+            padding: 20px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 150px;
+            position: relative;
+        }
+
+        .card-label {
+            position: absolute;
+            top: 8px;
+            left: 10px;
+            font-size: 12px;
+            color: #a594b8;
+            font-family: sans-serif;
+            font-weight: normal;
+        }
+
+        /* ===== 核心文字樣式（與遊戲內一致） ===== */
+        .combo-text {
+            font-family: var(--font-balloon);
+            font-weight: 900;
+            letter-spacing: 2px;
+
+            /* 🔴 改成 nowrap：不管怎麼縮排都不會產生多餘空白，且一行內絕不自動折行 */
+            white-space: nowrap;
+
+            text-align: center;
+            line-height: 1.25;
+            user-select: none;
+            paint-order: stroke fill;
+        }
+
+        /* Combo 1 */
+        .combo-1 {
+            font-size: 38px;
+            color: #ffe642;
+            -webkit-text-stroke: 5px #4a1c00;
+            text-shadow: 0 4px 0 #2b0e00, 0 8px 14px rgba(0, 0, 0, 0.7);
+        }
+
+        /* Combo 2 */
+        .combo-2 {
+            font-size: 36px;
+            color: #ff9800;
+            -webkit-text-stroke: 5px #421200;
+            text-shadow: 0 4px 0 #260700, 0 8px 16px rgba(255, 120, 0, 0.4), 0 10px 18px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Combo 3 */
+        .combo-3 {
+            font-size: 36px;
+            color: #ff4081;
+            -webkit-text-stroke: 5px #4a0022;
+            text-shadow: 0 4px 0 #2b0013, 0 8px 18px rgba(255, 30, 100, 0.5), 0 10px 20px rgba(0, 0, 0, 0.85);
+        }
+
+        /* Combo 4+ */
+        .combo-4 {
+            font-size: 38px;
+            color: #ffeb3b;
+            -webkit-text-stroke: 6px #280345;
+            text-shadow:
+                0 4px 0 #140024,
+                0 0 16px rgba(255, 235, 59, 0.8),
+                0 8px 24px rgba(170, 0, 255, 0.7),
+                0 12px 24px rgba(0, 0, 0, 0.9);
+        }
+
+        /* 「香！」飄字樣式 */
+        .fx-float-word-demo {
+            font-size: 30px;
+            font-weight: 900;
+            color: #ffffff;
+            -webkit-text-stroke: 3.5px #7a1500;
+            paint-order: stroke fill;
+            text-shadow: 0 3px 0 #420800, 0 4px 8px rgba(0, 0, 0, 0.6);
+        }
+
+        /* 分數跳出樣式 */
+        .fx-score-pop-demo {
+            font-size: 38px;
+            font-weight: 900;
+            color: #fff066;
+            -webkit-text-stroke: 4px #5c2000;
+            paint-order: stroke fill;
+            text-shadow: 0 4px 0 #3a1000, 0 6px 10px rgba(0, 0, 0, 0.6);
+        }
+
+        /* ===== 動態測試演練區 ===== */
+        .test-box {
+            width: 100%;
+            max-width: 480px;
+            height: 220px;
+            background: #2a1435;
+            border: 2px dashed #ff9a2e;
+            border-radius: 16px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 480px;
+        }
+
+        button {
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: bold;
+            font-family: sans-serif;
+            background: linear-gradient(#ffd76a, #ff9a2e);
+            border: 2px solid #fff;
+            color: #2b1200;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+            transition: transform 0.1s;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        /* 動畫觸發 */
+        #demo-target {
+            opacity: 0;
+        }
+
+        #demo-target.animating {
+            animation: comboPopIn 620ms cubic-bezier(0.175, 0.885, 0.32, 1.35) forwards;
+        }
+
+        @keyframes comboPopIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.2, 0.2) rotate(-6deg);
+            }
+
+            28% {
+                opacity: 1;
+                transform: scale(1.35, 0.8) rotate(2deg);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(0.9, 1.2) rotate(-1deg);
+            }
+
+            70% {
+                opacity: 1;
+                transform: scale(1.05, 0.95) rotate(1deg);
+            }
+
+            85% {
+                opacity: 1;
+                transform: scale(1, 1) rotate(0deg);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(-25px) scale(0.95, 1.05) rotate(0deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>🏮 夜市消消樂 - 字型樣式調校台 🏮</h1>
+
+    <div class="section-title">▼ 靜態一字排開（方便微調顏色、描邊粗細與中文字筆畫）▼</div>
+    <div class="showcase-grid">
+        <div class="showcase-card">
+            <span class="card-label">Combo 1</span>
+            <div class="combo-text combo-1">好呷！</div>
+        </div>
+
+        <div class="showcase-card">
+            <span class="card-label">Combo 2</span>
+            <div class="combo-text combo-2">COMBO ×2！<br>續攤啦！</div>
+        </div>
+
+        <div class="showcase-card">
+            <span class="card-label">Combo 3</span>
+            <div class="combo-text combo-3">COMBO ×3！<br>大排長龍！</div>
+        </div>
+
+        <div class="showcase-card">
+            <span class="card-label">Combo 4+</span>
+            <div class="combo-text combo-4">COMBO ×4！<br>橫掃夜市！</div>
+        </div>
+
+        <div class="showcase-card">
+            <span class="card-label">消塊原地字</span>
+            <div class="fx-float-word-demo">香！</div>
+        </div>
+
+        <div class="showcase-card">
+            <span class="card-label">加分跳字</span>
+            <div class="fx-score-pop-demo">+30</div>
+        </div>
+    </div>
+
+    <div class="section-title">▼ 動態測試框（點下方按鈕看果凍彈跳動畫）▼</div>
+    <div class="test-box">
+        <div id="demo-target" class="combo-text"></div>
+    </div>
+
+    <div class="btn-row">
+        <button onclick="playDemo(1, '好呷！')">播放 Combo 1</button>
+        <button onclick="playDemo(2, 'COMBO ×2！<br>續攤啦！')">播放 Combo 2</button>
+        <button onclick="playDemo(3, 'COMBO ×3！<br>大排長龍！')">播放 Combo 3</button>
+        <button onclick="playDemo(4, 'COMBO ×4！<br>橫掃夜市！')">播放 Combo 4</button>
+    </div>
+
+    <script>
+        const target = document.getElementById('demo-target');
+
+        function playDemo(level, htmlText) {
+            target.className = 'combo-text';
+            target.classList.remove('animating');
+            void target.offsetWidth;
+
+            target.innerHTML = htmlText; // 🔴 改用 innerHTML
+            target.classList.add('combo-' + level);
+            target.classList.add('animating');
+        }
+    </script>
+</body>
+
+</html>
