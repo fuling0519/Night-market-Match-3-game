@@ -69,6 +69,50 @@
             background-repeat: no-repeat;
         }
 
+        #bgm-toggle {
+            position: absolute;
+            top: max(16px, env(safe-area-inset-top));
+            right: max(16px, env(safe-area-inset-right));
+            z-index: 5;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px;
+            height: 56px;
+            padding: 0;
+            font-family: var(--font-balloon);
+            font-size: 28px;
+            line-height: 1;
+            color: #fff8d0;
+            background: linear-gradient(#ffcf5a, #e86b20);
+            border: 4px solid #fff8d0;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #8a2e00, 0 8px 18px rgba(0, 0, 0, 0.45), inset 0 0 10px rgba(255, 255, 255, 0.25);
+            transition: transform 0.12s ease, filter 0.12s ease;
+        }
+
+        #bgm-toggle:hover,
+        #bgm-toggle:focus-visible {
+            transform: scale(1.06);
+            filter: brightness(1.08);
+        }
+
+        #bgm-toggle:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #8a2e00, 0 5px 12px rgba(0, 0, 0, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.25);
+        }
+
+        @media (max-width: 420px) {
+            #bgm-toggle {
+                top: max(12px, env(safe-area-inset-top));
+                right: max(12px, env(safe-area-inset-right));
+                width: 52px;
+                height: 52px;
+                font-size: 25px;
+            }
+        }
+
         /* 遊戲核心頁：背景會根據關卡的 bg 動態改變 */
         #game-screen {
             max-width: none;
@@ -812,6 +856,7 @@
 
     <!-- ===== 畫面 1：遊戲首頁 ===== -->
     <section id="home-screen" class="screen active" aria-label="遊戲首頁">
+        <button id="bgm-toggle" type="button" aria-label="關閉背景音樂" aria-pressed="true" title="關閉背景音樂">🔊</button>
         <button class="btn" type="button" id="btn-start">▶ 開始遊戲</button>
         <button class="btn btn-secondary" type="button" id="btn-levels">▦ 關卡選擇</button>
         <button class="btn btn-secondary" type="button" id="btn-howto">📖 新手教學</button>
@@ -853,9 +898,20 @@
 
     <script>
         const bgmPlayer = document.getElementById('bgm-player');
+        const bgmToggle = document.getElementById('bgm-toggle');
+        const MAIN_BGM = 'assets/audio/Midnight_Market_Rush.mp3';
+        let bgmEnabled = true;
+
+        function updateBgmToggle() {
+            if (!bgmToggle) return;
+            bgmToggle.textContent = bgmEnabled ? '🔊' : '🔇';
+            bgmToggle.setAttribute('aria-label', bgmEnabled ? '關閉背景音樂' : '開啟背景音樂');
+            bgmToggle.setAttribute('aria-pressed', String(bgmEnabled));
+            bgmToggle.title = bgmEnabled ? '關閉背景音樂' : '開啟背景音樂';
+        }
 
         function playBgm(bgmSrc) {
-            if (!bgmPlayer || !bgmSrc) return;
+            if (!bgmEnabled || !bgmPlayer || !bgmSrc) return;
             if (bgmPlayer.src !== new URL(bgmSrc, window.location.href).href) {
                 bgmPlayer.src = bgmSrc;
             }
@@ -871,6 +927,21 @@
             }
         }
 
+        bgmToggle.addEventListener('click', function () {
+            bgmEnabled = !bgmEnabled;
+            if (bgmEnabled) {
+                const activeScreen = document.querySelector('.screen.active');
+                const activeLevel = activeScreen && activeScreen.id === 'game-screen'
+                    ? getLevelConfig(currentLevelId)
+                    : null;
+                playBgm(activeLevel ? activeLevel.bgm : MAIN_BGM);
+            } else {
+                stopBgm();
+            }
+            updateBgmToggle();
+        });
+        updateBgmToggle();
+
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(function (el) {
                 el.classList.remove('active');
@@ -880,7 +951,7 @@
 
         function goHome() {
             entryAnimationToken++;
-            stopBgm();
+            playBgm(MAIN_BGM);
             hideResultOverlay();
             showScreen('home-screen');
         }
@@ -896,7 +967,7 @@
             startGame(1);
         });
         document.getElementById('btn-levels').addEventListener('click', function () {
-            stopBgm();
+            playBgm(MAIN_BGM);
             renderLevelList();
             showScreen('level-screen');
         });
@@ -915,7 +986,7 @@
             beginLevel(Math.min(LEVELS.length, currentLevelId + 1));
         });
         document.getElementById('btn-to-levels').addEventListener('click', function () {
-            stopBgm();
+            playBgm(MAIN_BGM);
             hideResultOverlay();
             renderLevelList();
             showScreen('level-screen');
@@ -957,10 +1028,10 @@
 
         // ===== 最新關卡設定 =====
         const LEVELS = [
-            { id: 1, name: '逢甲夜市', title: '逢甲夜市消消樂', goal: 400, moves: 20, bg: 'assets/images/bg-fengjia.png', bgm: 'assets/audio/grim_pursuit.mp3' },
-            { id: 2, name: '饒河夜市', title: '饒河夜市消消樂', goal: 700, moves: 18, bg: 'assets/images/bg-raohe.png', bgm: 'assets/audio/grim_pursuit.mp3' },
-            { id: 3, name: '東大門夜市', title: '東大門夜市消消樂', goal: 1000, moves: 16, bg: 'assets/images/bg-dongdamen.png', bgm: 'assets/audio/grim_pursuit.mp3' },
-            { id: 4, name: '花園夜市', title: '花園夜市消消樂', goal: 1400, moves: 14, bg: 'assets/images/bg-huayuan.png', bgm: 'assets/audio/grim_pursuit.mp3' },
+            { id: 1, name: '逢甲夜市', title: '逢甲夜市消消樂', goal: 400, moves: 20, bg: 'assets/images/bg-fengjia.png', bgm: MAIN_BGM },
+            { id: 2, name: '饒河夜市', title: '饒河夜市消消樂', goal: 700, moves: 18, bg: 'assets/images/bg-raohe.png', bgm: MAIN_BGM },
+            { id: 3, name: '東大門夜市', title: '東大門夜市消消樂', goal: 1000, moves: 16, bg: 'assets/images/bg-dongdamen.png', bgm: MAIN_BGM },
+            { id: 4, name: '花園夜市', title: '花園夜市消消樂', goal: 1400, moves: 14, bg: 'assets/images/bg-huayuan.png', bgm: MAIN_BGM },
             { id: 5, name: '武聖夜市', title: '武聖夜市消消樂', goal: 2000, moves: 12, bg: 'assets/images/bg-wusheng.png', bgm: 'assets/audio/grim_pursuit.mp3' }
         ];
 
@@ -1574,7 +1645,26 @@
         const tutorialParams = new URLSearchParams(window.location.search);
         if (tutorialParams.get('startGame') === 'true') {
             startGame(1);
+        } else {
+            playBgm(MAIN_BGM);
         }
+
+        // 瀏覽器通常限制未經互動的自動播放，加入首次手勢/點擊解鎖監聽
+        const unlockAudio = function () {
+            if (bgmEnabled && bgmPlayer && bgmPlayer.paused) {
+                const activeScreen = document.querySelector('.screen.active');
+                if (activeScreen && activeScreen.id === 'game-screen') {
+                    const lv = getLevelConfig(currentLevelId);
+                    playBgm(lv ? lv.bgm : MAIN_BGM);
+                } else {
+                    playBgm(MAIN_BGM);
+                }
+            }
+            window.removeEventListener('pointerdown', unlockAudio);
+            window.removeEventListener('keydown', unlockAudio);
+        };
+        window.addEventListener('pointerdown', unlockAudio);
+        window.addEventListener('keydown', unlockAudio);
     </script>
 </body>
 

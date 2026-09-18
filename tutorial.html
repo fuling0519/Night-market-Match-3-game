@@ -764,6 +764,7 @@
 </head>
 <body>
 
+    <audio id="bgm-player" loop></audio>
 
     <!-- ===== 新手教學 ===== -->
     <section id="newcomer-screen" class="screen" aria-label="新手教學">
@@ -813,8 +814,32 @@
             { name: '蚵仔煎', img: 'assets/images/item-oyster.png' }
         ];
 
+        const bgmPlayer = document.getElementById('bgm-player');
+        const TUTORIAL_BGM = 'assets/audio/Midnight_Market_Rush.mp4';
+
+        function playBgm(bgmSrc) {
+            if (!bgmPlayer || !bgmSrc) return;
+            if (bgmPlayer.src !== new URL(bgmSrc, window.location.href).href) {
+                bgmPlayer.src = bgmSrc;
+            }
+            bgmPlayer.play().catch(function (err) {
+                console.log('Autoplay blocked:', err);
+            });
+        }
+
+        const unlockBgm = function () {
+            if (bgmPlayer && bgmPlayer.paused) {
+                playBgm(TUTORIAL_BGM);
+            }
+            window.removeEventListener('pointerdown', unlockBgm);
+            window.removeEventListener('keydown', unlockBgm);
+        };
+        window.addEventListener('pointerdown', unlockBgm);
+        window.addEventListener('keydown', unlockBgm);
+
         // 教學頁自己的路由：離開教學回到團體版首頁。
         document.addEventListener('DOMContentLoaded', function () {
+            playBgm(TUTORIAL_BGM);
             const leaveButtons = document.querySelectorAll('[data-go-home]');
             leaveButtons.forEach(function (btn) {
                 btn.addEventListener('click', function () {

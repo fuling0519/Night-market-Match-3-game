@@ -1,4 +1,4 @@
-﻿# 🍢 台灣夜市消消樂 (Taiwan Night Market Match-3 Game)
+# 🍢 台灣夜市消消樂 (Taiwan Night Market Match-3 Game)
 
 一款融合台灣在地夜市文化的休閒三消網頁遊戲！跟著美食香氣踏遍全台經典夜市，挑戰連鎖 Combo，體驗最接地氣的消除樂趣！
 
@@ -36,7 +36,8 @@
 Night-market-Match-3-game/
 ├── assets/
 │   ├── audio/                  # 遊戲背景音樂 (BGM)
-│   │   └── grim_pursuit.mp3
+│   │   ├── Midnight_Market_Rush.mp4 # 主題曲 (首頁、教學關卡、第1~4關)
+│   │   └── grim_pursuit.mp3    # 第5關魔王關 BGM
 │   └── images/                 # 遊戲視覺資源
 │       ├── bg-home.png         # 首頁夜市背景
 │       ├── bg-fengjia.png      # 逢甲夜市背景
