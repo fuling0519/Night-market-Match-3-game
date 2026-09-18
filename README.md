@@ -32,30 +32,29 @@
 
 ## 📂 專案架構
 
-`	ext
+```text
 Night-market-Match-3-game/
 ├── assets/
-│   ├── audio/              # 遊戲背景音樂 (BGM)
+│   ├── audio/                  # 遊戲背景音樂 (BGM)
 │   │   └── grim_pursuit.mp3
-│   └── images/             # 遊戲視覺資源
-│       ├── bg-home.png     # 首頁夜市背景
-│       ├── bg-fengjia.png  # 逢甲夜市背景
-│       ├── bg-raohe.png    # 饒河夜市背景
-│       ├── bg-dongdamen.png# 東大門夜市背景
-│       ├── bg-huayuan.png  # 花園夜市背景
-│       ├── bg-wusheng.png  # 武聖夜市背景
-│       ├── item-boba.png   # 珍珠奶茶
-│       ├── item-sweetpotato.png # 地瓜球
-│       ├── item-tofu.png   # 臭豆腐
-│       ├── item-chicken.png# 雞排
-│       └── item-oyster.png # 蚵仔煎
-├── tools/                  # 開發輔助工具
-│   └── combo_font.html     # Combo 特效字體調校預覽頁
-├── index.html              # 遊戲主程式（包含首頁、關卡選擇與主遊戲板）
-├── tutorial.html           # 新手教學模式引導頁
-├── .gitignore              # Git 忽略檔案設定
-└── README.md               # 專案說明文件
-`
+│   └── images/                 # 遊戲視覺資源
+│       ├── bg-home.png         # 首頁夜市背景
+│       ├── bg-fengjia.png      # 逢甲夜市背景
+│       ├── bg-raohe.png        # 饒河夜市背景
+│       ├── bg-dongdamen.png    # 東大門夜市背景
+│       ├── bg-huayuan.png      # 花園夜市背景
+│       ├── bg-wusheng.png      # 武聖夜市背景
+│       ├── item-boba.png       # 珍珠奶茶
+│       ├── item-sweetpotato.png# 地瓜球
+│       ├── item-tofu.png       # 臭豆腐
+│       ├── item-chicken.png    # 雞排
+│       └── item-oyster.png     # 蚵仔煎
+├── tools/                      # 開發輔助工具
+│   └── combo_font.html         # Combo 特效字體調校預覽頁
+├── index.html                  # 遊戲主程式（包含首頁、關卡選擇與主遊戲板）
+├── tutorial.html               # 新手教學模式引導頁
+├── .gitignore                  # Git 忽略檔案設定
+└── README.md                   # 專案說明文件
 
 ---
 
