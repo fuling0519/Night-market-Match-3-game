@@ -358,6 +358,23 @@
             position: relative;
         }
 
+        /* The tile elements stay in their grid cells while their contents slide
+           across them. --swap-x/y are measured from the actual cell positions,
+           so this also follows responsive board sizing and grid gaps. */
+        .tile.swapping {
+            z-index: 10;
+            overflow: visible;
+            will-change: transform;
+            transition: transform 205ms cubic-bezier(0.22, 0.82, 0.3, 1.12);
+            transform: translate(var(--swap-x, 0px), var(--swap-y, 0px));
+        }
+
+        .tile.swapping.swap-back {
+            transition-duration: 180ms;
+            transition-timing-function: cubic-bezier(0.38, 0, 0.58, 1);
+            transform: translate(0, 0);
+        }
+
         .tile img {
             width: 90%;
             height: 90%;
@@ -902,6 +919,8 @@
         const MATCH_ANIM_MS = 380;
         const DROP_ANIM_MS = 450;
         const NEW_DROP_ANIM_MS = 520;
+        const SWAP_ANIM_MS = 205;
+        const SWAP_BACK_ANIM_MS = 180;
         const CLEARED_STORAGE_KEY = 'nightmarket-cleared-levels';
 
         // ===== 最新關卡設定 =====
@@ -1165,17 +1184,54 @@
             swapTilesAndCheck(r1, c1, r2, c2);
         }
 
-        function swapTilesAndCheck(r1, c1, r2, c2) {
-            swapTiles(r1, c1, r2, c2);
+        async function swapTilesAndCheck(r1, c1, r2, c2) {
+            const firstTile = boardElement.querySelector('[data-row="' + r1 + '"][data-col="' + c1 + '"]');
+            const secondTile = boardElement.querySelector('[data-row="' + r2 + '"][data-col="' + c2 + '"]');
+            if (!firstTile || !secondTile) return;
 
+            // Lock before the first animation frame so a second gesture cannot
+            // start while these two DOM tiles are between cells.
+            isBusy = true;
+            boardElement.classList.add('busy');
+
+            const firstRect = firstTile.getBoundingClientRect();
+            const secondRect = secondTile.getBoundingClientRect();
+            firstTile.style.setProperty('--swap-x', (secondRect.left - firstRect.left) + 'px');
+            firstTile.style.setProperty('--swap-y', (secondRect.top - firstRect.top) + 'px');
+            secondTile.style.setProperty('--swap-x', (firstRect.left - secondRect.left) + 'px');
+            secondTile.style.setProperty('--swap-y', (firstRect.top - secondRect.top) + 'px');
+
+            // Establish the zero-transform state before enabling the transform.
+            void firstTile.offsetWidth;
+            firstTile.classList.add('swapping');
+            secondTile.classList.add('swapping');
+            await wait(SWAP_ANIM_MS);
+
+            // Commit the data only once the forward motion has reached its
+            // destination. renderBoard() may safely recreate DOM tiles now.
+            swapTiles(r1, c1, r2, c2);
             const matches = checkMatches();
             if (matches.length > 0) {
                 renderBoard();
-                handleMatches(matches, 1);
-            } else {
-                swapTiles(r1, c1, r2, c2);
-                renderBoard();
+                await handleMatches(matches, 1);
+                return;
             }
+
+            // No match: restore the data immediately, then visibly travel back
+            // on the same DOM nodes rather than rebuilding the board mid-motion.
+            swapTiles(r1, c1, r2, c2);
+            firstTile.classList.add('swap-back');
+            secondTile.classList.add('swap-back');
+            await wait(SWAP_BACK_ANIM_MS);
+
+            firstTile.classList.remove('swapping', 'swap-back');
+            secondTile.classList.remove('swapping', 'swap-back');
+            firstTile.style.removeProperty('--swap-x');
+            firstTile.style.removeProperty('--swap-y');
+            secondTile.style.removeProperty('--swap-x');
+            secondTile.style.removeProperty('--swap-y');
+            isBusy = false;
+            boardElement.classList.remove('busy');
         }
 
         function swapTiles(r1, c1, r2, c2) {
