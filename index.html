@@ -428,6 +428,18 @@
             pointer-events: none;
         }
 
+        .tile.special {
+            box-shadow: 0 0 8px 2px rgba(255, 215, 0, 0.6);
+        }
+
+        .tile.special-bomb {
+            box-shadow: 0 0 10px 3px rgba(255, 120, 200, 0.7);
+        }
+
+        .tile.special-color {
+            box-shadow: 0 0 10px 3px rgba(255, 180, 60, 0.7);
+        }
+
         .tile.matching {
             z-index: 3;
             overflow: visible;
@@ -1218,6 +1230,254 @@
 
         renderLevelList();
 
+        function tileColor(r, c) {
+            const t = board[r] && board[r][c];
+            if (t === null || typeof t === 'undefined') return null;
+            return typeof t === 'object' ? t.color : t;
+        }
+
+        function tileSpecial(r, c) {
+            const t = board[r] && board[r][c];
+            return t !== null && typeof t === 'object' && t.special ? t.special : null;
+        }
+
+        function makeTile(color, special = null) {
+            return special ? { color: color, special: special } : color;
+        }
+
+        function coordKey(r, c) {
+            return r + ',' + c;
+        }
+
+        function parseCoordKey(key) {
+            const parts = String(key).split(',');
+            return { r: Number(parts[0]), c: Number(parts[1]) };
+        }
+
+        function getGroupCenter(cells) {
+            if (!cells.length) return null;
+            return cells[Math.floor(cells.length / 2)];
+        }
+
+        function findMatchGroups() {
+            const groups = [];
+
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                let start = 0;
+                while (start < BOARD_SIZE) {
+                    const firstColor = tileColor(r, start);
+                    if (firstColor === null) {
+                        start++;
+                        continue;
+                    }
+                    let end = start + 1;
+                    while (end < BOARD_SIZE && tileColor(r, end) === firstColor) {
+                        end++;
+                    }
+                    if (end - start >= 3) {
+                        const cells = [];
+                        for (let c = start; c < end; c++) {
+                            cells.push({ r, c });
+                        }
+                        groups.push({ cells, color: firstColor, direction: 'horizontal' });
+                    }
+                    start = end;
+                }
+            }
+
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                let start = 0;
+                while (start < BOARD_SIZE) {
+                    const firstColor = tileColor(start, c);
+                    if (firstColor === null) {
+                        start++;
+                        continue;
+                    }
+                    let end = start + 1;
+                    while (end < BOARD_SIZE && tileColor(end, c) === firstColor) {
+                        end++;
+                    }
+                    if (end - start >= 3) {
+                        const cells = [];
+                        for (let r = start; r < end; r++) {
+                            cells.push({ r, c });
+                        }
+                        groups.push({ cells, color: firstColor, direction: 'vertical' });
+                    }
+                    start = end;
+                }
+            }
+
+            return groups;
+        }
+
+        function checkMatches() {
+            return findMatchGroups().flatMap(function (group) {
+                return group.cells;
+            });
+        }
+
+        function chooseSpecialPlacement(group, preferred, occupied) {
+            const preferredList = [];
+            if (preferred) preferredList.push(preferred);
+            const center = getGroupCenter(group.cells || []);
+            if (center) preferredList.push(center);
+            const normalCells = (group.cells || []).filter(function (cell) {
+                return board[cell.r][cell.c] !== null && tileSpecial(cell.r, cell.c) === null;
+            });
+            if (normalCells.length) preferredList.push(normalCells[0]);
+
+            for (let i = 0; i < preferredList.length; i++) {
+                const candidate = preferredList[i];
+                if (!candidate) continue;
+                const key = coordKey(candidate.r, candidate.c);
+                if (occupied.has(key)) continue;
+                if (board[candidate.r][candidate.c] === null) continue;
+                if (tileSpecial(candidate.r, candidate.c) !== null) continue;
+                return candidate;
+            }
+            return null;
+        }
+
+        function detectSpecialTiles(groups, preferredPositions) {
+            const occupied = new Set();
+            const generated = [];
+            const prefs = Array.isArray(preferredPositions) ? preferredPositions : [];
+
+            (groups || []).forEach(function (group) {
+                if (!group || !Array.isArray(group.cells) || group.cells.length < 4) return;
+
+                const special = group.cells.length >= 5 ? 'color-clear' : 'bomb';
+                const preferred = prefs.find(function (pos) {
+                    return group.cells.some(function (cell) {
+                        return cell && cell.r === pos.r && cell.c === pos.c;
+                    });
+                });
+                const location = chooseSpecialPlacement(group, preferred, occupied);
+                if (!location) return;
+                occupied.add(coordKey(location.r, location.c));
+                board[location.r][location.c] = makeTile(tileColor(location.r, location.c), special);
+                generated.push({ r: location.r, c: location.c, special: special });
+            });
+
+            return generated;
+        }
+
+        function expandSpecialEffects(initialCells, targetMap) {
+            const cellsToClear = new Set();
+            const queue = [];
+            const processed = new Set();
+
+            function enqueue(key, targetColor) {
+                if (!key) return;
+                const { r, c } = parseCoordKey(key);
+                if (r < 0 || r >= BOARD_SIZE || c < 0 || c >= BOARD_SIZE) return;
+                if (board[r][c] === null) return;
+                if (!cellsToClear.has(key)) cellsToClear.add(key);
+                const special = tileSpecial(r, c);
+                if (special && !processed.has(key)) {
+                    queue.push({ key, targetColor: targetColor !== undefined ? targetColor : null });
+                }
+            }
+
+            const keys = Array.from(initialCells || []);
+            keys.forEach(function (key) {
+                const explicitTarget = targetMap && targetMap[key];
+                enqueue(key, explicitTarget);
+            });
+
+            while (queue.length) {
+                const current = queue.shift();
+                const { r, c } = parseCoordKey(current.key);
+                if (board[r][c] === null) continue;
+                const special = tileSpecial(r, c);
+                if (!special || processed.has(current.key)) continue;
+                processed.add(current.key);
+
+                if (special === 'bomb') {
+                    for (let rr = r - 1; rr <= r + 1; rr++) {
+                        for (let cc = c - 1; cc <= c + 1; cc++) {
+                            if (rr < 0 || rr >= BOARD_SIZE || cc < 0 || cc >= BOARD_SIZE) continue;
+                            if (board[rr][cc] !== null) enqueue(coordKey(rr, cc), null);
+                        }
+                    }
+                    continue;
+                }
+
+                if (special === 'color-clear') {
+                    const target = current.targetColor !== null && current.targetColor !== undefined
+                        ? current.targetColor
+                        : tileColor(r, c);
+                    if (target === null || typeof target === 'undefined') continue;
+                    for (let rr = 0; rr < BOARD_SIZE; rr++) {
+                        for (let cc = 0; cc < BOARD_SIZE; cc++) {
+                            if (board[rr][cc] !== null && tileColor(rr, cc) === target) {
+                                enqueue(coordKey(rr, cc), null);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return cellsToClear;
+        }
+
+        function resolveSpecialSwap(r1, c1, r2, c2) {
+            const special1 = tileSpecial(r1, c1);
+            const special2 = tileSpecial(r2, c2);
+            if (!special1 && !special2) return null;
+
+            const key1 = coordKey(r1, c1);
+            const key2 = coordKey(r2, c2);
+            const initial = new Set([key1, key2]);
+            const targetMap = {};
+
+            if (special1 === 'bomb' && special2 === 'bomb') {
+                const cells = new Set();
+                for (let rr = r1 - 1; rr <= r1 + 1; rr++) {
+                    for (let cc = c1 - 1; cc <= c1 + 1; cc++) {
+                        if (rr >= 0 && rr < BOARD_SIZE && cc >= 0 && cc < BOARD_SIZE && board[rr][cc] !== null) {
+                            cells.add(coordKey(rr, cc));
+                        }
+                    }
+                }
+                for (let rr = r2 - 1; rr <= r2 + 1; rr++) {
+                    for (let cc = c2 - 1; cc <= c2 + 1; cc++) {
+                        if (rr >= 0 && rr < BOARD_SIZE && cc >= 0 && cc < BOARD_SIZE && board[rr][cc] !== null) {
+                            cells.add(coordKey(rr, cc));
+                        }
+                    }
+                }
+                return cells;
+            }
+
+            if (special1 === 'color-clear' && special2 === 'color-clear') {
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        if (board[r][c] !== null) initial.add(coordKey(r, c));
+                    }
+                }
+                return initial;
+            }
+
+            if (special1 && !special2) {
+                if (special1 === 'color-clear') targetMap[key1] = tileColor(r2, c2);
+                if (special1 === 'bomb') return expandSpecialEffects(initial, targetMap);
+            }
+
+            if (special2 && !special1) {
+                if (special2 === 'color-clear') targetMap[key2] = tileColor(r1, c1);
+                if (special2 === 'bomb') return expandSpecialEffects(initial, targetMap);
+            }
+
+            if (special1 && special2) {
+                if (special1 === 'color-clear') targetMap[key1] = tileColor(r2, c2);
+                if (special2 === 'color-clear') targetMap[key2] = tileColor(r1, c1);
+            }
+
+            return expandSpecialEffects(initial, targetMap);
+        }
+
         function initBoard() {
             isBusy = false;
             boardElement.classList.remove('busy', 'shake-sm', 'shake-md', 'shake-lg');
@@ -1244,8 +1504,21 @@
                     const tile = document.createElement('div');
                     tile.classList.add('tile');
 
-                    const typeIndex = board[r][c];
-                    if (typeIndex !== null) {
+                    const special = tileSpecial(r, c);
+                    if (special) {
+                        tile.classList.add('special');
+                        tile.classList.add(special === 'bomb' ? 'special-bomb' : 'special-color');
+                        const specialImg = document.createElement('img');
+                        if (special === 'bomb') {
+                            specialImg.src = 'assets/images/item-takoyaki.png';
+                            specialImg.alt = '章魚燒炸彈';
+                        } else {
+                            specialImg.src = 'assets/images/item-marshmallow.png';
+                            specialImg.alt = '彩虹棉花糖';
+                        }
+                        tile.appendChild(specialImg);
+                    } else if (board[r][c] !== null) {
+                        const typeIndex = tileColor(r, c);
                         const type = CANDY_TYPES[typeIndex];
                         const img = document.createElement('img');
                         img.src = type.img;
@@ -1306,8 +1579,6 @@
             const secondTile = boardElement.querySelector('[data-row="' + r2 + '"][data-col="' + c2 + '"]');
             if (!firstTile || !secondTile) return;
 
-            // Lock before the first animation frame so a second gesture cannot
-            // start while these two DOM tiles are between cells.
             isBusy = true;
             boardElement.classList.add('busy');
 
@@ -1318,24 +1589,27 @@
             secondTile.style.setProperty('--swap-x', (firstRect.left - secondRect.left) + 'px');
             secondTile.style.setProperty('--swap-y', (firstRect.top - secondRect.top) + 'px');
 
-            // Establish the zero-transform state before enabling the transform.
             void firstTile.offsetWidth;
             firstTile.classList.add('swapping');
             secondTile.classList.add('swapping');
             await wait(SWAP_ANIM_MS);
 
-            // Commit the data only once the forward motion has reached its
-            // destination. renderBoard() may safely recreate DOM tiles now.
             swapTiles(r1, c1, r2, c2);
-            const matches = checkMatches();
-            if (matches.length > 0) {
+
+            const specialSwapCells = resolveSpecialSwap(r1, c1, r2, c2);
+            if (specialSwapCells && specialSwapCells.size > 0) {
                 renderBoard();
-                await handleMatches(matches, 1);
+                await handleSpecialSwapResult(specialSwapCells, 1);
                 return;
             }
 
-            // No match: restore the data immediately, then visibly travel back
-            // on the same DOM nodes rather than rebuilding the board mid-motion.
+            const matches = checkMatches();
+            if (matches.length > 0) {
+                renderBoard();
+                await handleMatches(matches, 1, { r: r2, c: c2 });
+                return;
+            }
+
             swapTiles(r1, c1, r2, c2);
             firstTile.classList.add('swap-back');
             secondTile.classList.add('swap-back');
@@ -1357,32 +1631,132 @@
             board[r2][c2] = temp;
         }
 
-        function checkMatches() {
-            let matchedTiles = new Set();
-            for (let r = 0; r < BOARD_SIZE; r++) {
-                for (let c = 0; c < BOARD_SIZE - 2; c++) {
-                    let type = board[r][c];
-                    if (type !== null && type === board[r][c + 1] && type === board[r][c + 2]) {
-                        matchedTiles.add(`${r},${c}`);
-                        matchedTiles.add(`${r},${c + 1}`);
-                        matchedTiles.add(`${r},${c + 2}`);
-                    }
-                }
-            }
-            for (let c = 0; c < BOARD_SIZE; c++) {
-                for (let r = 0; r < BOARD_SIZE - 2; r++) {
-                    let type = board[r][c];
-                    if (type !== null && type === board[r + 1][c] && type === board[r + 2][c]) {
-                        matchedTiles.add(`${r},${c}`);
-                        matchedTiles.add(`${r + 1},${c}`);
-                        matchedTiles.add(`${r + 2},${c}`);
-                    }
-                }
-            }
-            return Array.from(matchedTiles).map(coord => {
-                const [r, c] = coord.split(',').map(Number);
+        async function handleSpecialSwapResult(cellsToClear, combo) {
+            const finalSet = new Set(cellsToClear || []);
+            const cells = Array.from(finalSet).map(function (key) {
+                const { r, c } = parseCoordKey(key);
                 return { r, c };
             });
+
+            if (!cells.length) {
+                isBusy = false;
+                boardElement.classList.remove('busy');
+                finishMove();
+                return;
+            }
+
+            const points = calcClearScore(cells.length, combo || 1);
+            score += points;
+            updateHud();
+            showComboBanner(combo || 1, cells.length);
+            showScorePopup(points);
+            triggerBoardShake(combo || 1, cells.length);
+            spawnFloatWords(cells);
+            spawnParticles(cells);
+            playMatchAnimation(cells);
+
+            await wait(MATCH_ANIM_MS);
+
+            cells.forEach(function ({ r, c }) {
+                board[r][c] = null;
+            });
+
+            const fallMap = getFallMap();
+            const newCountByCol = [];
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                let holes = 0;
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    if (board[r][c] === null) holes++;
+                }
+                newCountByCol[c] = holes;
+            }
+
+            applyGravity();
+            const newTiles = fillNewTiles();
+            renderBoard();
+            const dropMs = playDropAnimations(fallMap, newTiles, newCountByCol);
+            await wait(dropMs);
+
+            const nextMatches = checkMatches();
+            if (nextMatches.length > 0) {
+                await handleMatches(nextMatches, (combo || 1) + 1, null);
+            } else {
+                isBusy = false;
+                boardElement.classList.remove('busy');
+                finishMove();
+            }
+        }
+
+        async function handleMatches(matches, combo, preferred) {
+            combo = combo || 1;
+            const groups = findMatchGroups();
+            const allMatchKeys = new Set(groups.flatMap(function (group) {
+                return group.cells.map(function (cell) {
+                    return coordKey(cell.r, cell.c);
+                });
+            }));
+            const generated = detectSpecialTiles(groups, preferred ? [preferred] : []);
+            const generatedKeys = new Set(generated.map(function (cell) {
+                return coordKey(cell.r, cell.c);
+            }));
+            const clearSet = new Set(allMatchKeys);
+            generatedKeys.forEach(function (key) {
+                clearSet.delete(key);
+            });
+
+            const finalSet = expandSpecialEffects(clearSet, {});
+            const cells = Array.from(finalSet).map(function (key) {
+                const { r, c } = parseCoordKey(key);
+                return { r, c };
+            });
+
+            if (!cells.length) {
+                isBusy = false;
+                boardElement.classList.remove('busy');
+                finishMove();
+                return;
+            }
+
+            const points = calcClearScore(cells.length, combo);
+            score += points;
+            updateHud();
+            showComboBanner(combo, cells.length);
+            showScorePopup(points);
+            triggerBoardShake(combo, cells.length);
+            spawnFloatWords(cells);
+            spawnParticles(cells);
+            playMatchAnimation(cells);
+
+            await wait(MATCH_ANIM_MS);
+
+            cells.forEach(function ({ r, c }) {
+                board[r][c] = null;
+            });
+
+            const fallMap = getFallMap();
+            const newCountByCol = [];
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                let holes = 0;
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    if (board[r][c] === null) holes++;
+                }
+                newCountByCol[c] = holes;
+            }
+
+            applyGravity();
+            const newTiles = fillNewTiles();
+            renderBoard();
+            const dropMs = playDropAnimations(fallMap, newTiles, newCountByCol);
+            await wait(dropMs);
+
+            const nextMatches = checkMatches();
+            if (nextMatches.length > 0) {
+                await handleMatches(nextMatches, combo + 1, null);
+            } else {
+                isBusy = false;
+                boardElement.classList.remove('busy');
+                finishMove();
+            }
         }
 
         function wait(ms) {
@@ -1578,55 +1952,6 @@
 
             isBusy = false;
             boardElement.classList.remove('busy');
-        }
-
-        async function handleMatches(matches, combo) {
-            combo = combo || 1;
-            isBusy = true;
-            boardElement.classList.add('busy');
-
-            const points = calcClearScore(matches.length, combo);
-            score += points;
-            updateHud();
-
-            showComboBanner(combo, matches.length);
-            showScorePopup(points);
-            triggerBoardShake(combo, matches.length);
-            spawnFloatWords(matches);
-            spawnParticles(matches);
-            playMatchAnimation(matches);
-
-            await wait(MATCH_ANIM_MS);
-
-            matches.forEach(function ({ r, c }) {
-                board[r][c] = null;
-            });
-
-            const fallMap = getFallMap();
-            const newCountByCol = [];
-            for (let c = 0; c < BOARD_SIZE; c++) {
-                let holes = 0;
-                for (let r = 0; r < BOARD_SIZE; r++) {
-                    if (board[r][c] === null) holes++;
-                }
-                newCountByCol[c] = holes;
-            }
-
-            applyGravity();
-            const newTiles = fillNewTiles();
-            renderBoard();
-
-            const dropMs = playDropAnimations(fallMap, newTiles, newCountByCol);
-            await wait(dropMs);
-
-            const newMatches = checkMatches();
-            if (newMatches.length > 0) {
-                await handleMatches(newMatches, combo + 1);
-            } else {
-                isBusy = false;
-                boardElement.classList.remove('busy');
-                finishMove();
-            }
         }
 
         function applyGravity() {
