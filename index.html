@@ -63,7 +63,7 @@
             min-height: 100vh;
             padding: 0 16px 24vh;
             justify-content: flex-end;
-            background-image: url('assets/images/bg-home.png');
+            background-image: url('assets/images/bg-home.webp');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -430,6 +430,17 @@
 
         .tile.special {
             box-shadow: 0 0 8px 2px rgba(255, 215, 0, 0.6);
+        }
+
+        .tile.special img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: block;
         }
 
         .tile.special-bomb {
@@ -1018,12 +1029,15 @@
         });
 
         const BOARD_SIZE = 8;
+        const ITEM_SPRITE_URL = 'assets/images/items-sprite.webp';
+        const ITEM_SPRITE_COLS = 7;
+        const ITEM_SPRITE_SIZE = 320;
         const CANDY_TYPES = [
-            { name: '珍奶', img: 'assets/images/item-boba.png' },
-            { name: '地瓜球', img: 'assets/images/item-sweetpotato.png' },
-            { name: '臭豆腐', img: 'assets/images/item-tofu.png' },
-            { name: '雞排', img: 'assets/images/item-chicken.png' },
-            { name: '蚵仔煎', img: 'assets/images/item-oyster.png' }
+            { name: '珍奶', img: 'assets/images/item-boba.webp', spriteIndex: 0 },
+            { name: '地瓜球', img: 'assets/images/item-sweetpotato.webp', spriteIndex: 1 },
+            { name: '臭豆腐', img: 'assets/images/item-tofu.webp', spriteIndex: 2 },
+            { name: '雞排', img: 'assets/images/item-chicken.webp', spriteIndex: 3 },
+            { name: '蚵仔煎', img: 'assets/images/item-oyster.webp', spriteIndex: 4 }
         ];
 
         const boardElement = document.getElementById('board');
@@ -1053,11 +1067,11 @@
 
         // ===== 最新關卡設定 =====
         const LEVELS = [
-            { id: 1, name: '逢甲夜市', title: '逢甲夜市消消樂', goal: 400, moves: 20, bg: 'assets/images/bg-fengjia.png', bgm: MAIN_BGM },
-            { id: 2, name: '饒河夜市', title: '饒河夜市消消樂', goal: 700, moves: 18, bg: 'assets/images/bg-raohe.png', bgm: MAIN_BGM },
-            { id: 3, name: '東大門夜市', title: '東大門夜市消消樂', goal: 1000, moves: 16, bg: 'assets/images/bg-dongdamen.png', bgm: MAIN_BGM },
-            { id: 4, name: '花園夜市', title: '花園夜市消消樂', goal: 1400, moves: 14, bg: 'assets/images/bg-huayuan.png', bgm: MAIN_BGM },
-            { id: 5, name: '武聖夜市', title: '武聖夜市消消樂', goal: 2000, moves: 12, bg: 'assets/images/bg-wusheng.png', bgm: 'assets/audio/grim_pursuit.mp3' }
+            { id: 1, name: '逢甲夜市', title: '逢甲夜市消消樂', goal: 400, moves: 20, bg: 'assets/images/bg-fengjia.webp', bgm: MAIN_BGM },
+            { id: 2, name: '饒河夜市', title: '饒河夜市消消樂', goal: 700, moves: 18, bg: 'assets/images/bg-raohe.webp', bgm: MAIN_BGM },
+            { id: 3, name: '東大門夜市', title: '東大門夜市消消樂', goal: 1000, moves: 16, bg: 'assets/images/bg-dongdamen.webp', bgm: MAIN_BGM },
+            { id: 4, name: '花園夜市', title: '花園夜市消消樂', goal: 1400, moves: 14, bg: 'assets/images/bg-huayuan.webp', bgm: MAIN_BGM },
+            { id: 5, name: '武聖夜市', title: '武聖夜市消消樂', goal: 2000, moves: 12, bg: 'assets/images/bg-wusheng.webp', bgm: 'assets/audio/grim_pursuit.mp3' }
         ];
 
         let board = [];
@@ -1093,6 +1107,17 @@
             return LEVELS.find(function (lv) { return lv.id === levelId; }) || LEVELS[0];
         }
 
+        const backgroundImageCache = new Map();
+
+        function preloadBackground(url) {
+            if (!url || backgroundImageCache.has(url)) return;
+            const img = new Image();
+            img.onload = function () {
+                backgroundImageCache.set(url, true);
+            };
+            img.src = url;
+        }
+
         function updateHud() {
             const lv = getLevelConfig(currentLevelId);
             if (gameTitleEl) gameTitleEl.textContent = lv.title;
@@ -1100,8 +1125,10 @@
             if (scoreElement) scoreElement.innerText = score;
             if (goalScoreEl) goalScoreEl.innerText = lv.goal;
             if (movesLeftEl) movesLeftEl.innerText = movesLeft;
-            // 動態更換遊戲背景圖
-            if (gameScreenEl) gameScreenEl.style.backgroundImage = "url('" + lv.bg + "')";
+            if (gameScreenEl) {
+                gameScreenEl.style.backgroundImage = "url('" + lv.bg + "')";
+                preloadBackground(lv.bg);
+            }
         }
 
         function renderLevelList() {
@@ -1167,6 +1194,7 @@
             touchStartTile = null;
             isBusy = false;
             hideResultOverlay();
+            preloadBackground(lv.bg);
             updateHud();
             playBgm(lv.bgm);
             if (fxLayer) fxLayer.innerHTML = '';
@@ -1510,20 +1538,21 @@
                         tile.classList.add(special === 'bomb' ? 'special-bomb' : 'special-color');
                         const specialImg = document.createElement('img');
                         if (special === 'bomb') {
-                            specialImg.src = 'assets/images/item-takoyaki.png';
+                            specialImg.src = 'assets/images/item-takoyaki.webp';
                             specialImg.alt = '章魚燒炸彈';
                         } else {
-                            specialImg.src = 'assets/images/item-marshmallow.png';
+                            specialImg.src = 'assets/images/item-marshmallow.webp';
                             specialImg.alt = '彩虹棉花糖';
                         }
                         tile.appendChild(specialImg);
                     } else if (board[r][c] !== null) {
                         const typeIndex = tileColor(r, c);
                         const type = CANDY_TYPES[typeIndex];
-                        const img = document.createElement('img');
-                        img.src = type.img;
-                        img.alt = type.name;
-                        tile.appendChild(img);
+                        tile.style.backgroundImage = "url('" + ITEM_SPRITE_URL + "')";
+                        tile.style.backgroundRepeat = 'no-repeat';
+                        tile.style.backgroundSize = (ITEM_SPRITE_COLS * 100) + '% 100%';
+                        tile.style.backgroundPosition = (type.spriteIndex * 100 / (ITEM_SPRITE_COLS - 1)) + '% 0%';
+                        tile.title = type.name;
                     } else {
                         tile.style.backgroundColor = 'transparent';
                     }
