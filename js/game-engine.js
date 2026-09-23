@@ -165,7 +165,7 @@
             return generated;
         }
 
-        function expandSpecialEffects(initialCells, targetMap, protectedKeys = new Set()) {
+        function expandSpecialEffects(initialCells, targetMap, protectedKeys = new Set(), effects = []) {
             const cellsToClear = new Set();
             const queue = [];
             const processed = new Set();
@@ -195,12 +195,19 @@
                 const special = tileSpecial(r, c);
                 if (!special || processed.has(current.key)) continue;
                 processed.add(current.key);
+                const effect = { r, c, special, cells: [] };
+                effects.push(effect);
+                function affect(rr, cc) {
+                    const key = coordKey(rr, cc);
+                    if (board[rr][cc] !== null && !protectedKeys.has(key)) effect.cells.push({r:rr,c:cc});
+                    enqueue(key, null);
+                }
 
                 if (special === 'bomb') {
                     for (let rr = r - 1; rr <= r + 1; rr++) {
                         for (let cc = c - 1; cc <= c + 1; cc++) {
                             if (rr < 0 || rr >= BOARD_SIZE || cc < 0 || cc >= BOARD_SIZE) continue;
-                            if (board[rr][cc] !== null) enqueue(coordKey(rr, cc), null);
+                            if (board[rr][cc] !== null) affect(rr, cc);
                         }
                     }
                     continue;
@@ -214,7 +221,7 @@
                     for (let rr = 0; rr < BOARD_SIZE; rr++) {
                         for (let cc = 0; cc < BOARD_SIZE; cc++) {
                             if (board[rr][cc] !== null && tileColor(rr, cc) === target) {
-                                enqueue(coordKey(rr, cc), null);
+                                affect(rr, cc);
                             }
                         }
                     }
@@ -224,7 +231,7 @@
             return cellsToClear;
         }
 
-        function resolveSpecialSwap(r1, c1, r2, c2) {
+        function resolveSpecialSwap(r1, c1, r2, c2, effects) {
             const special1 = tileSpecial(r1, c1);
             const special2 = tileSpecial(r2, c2);
             if (!special1 && !special2) return null;
@@ -240,13 +247,14 @@
                         if (board[r][c] !== null) initial.add(coordKey(r, c));
                     }
                 }
+                effects.push({r:r1,c:c1,special:'all',cells:Array.from(initial, parseCoordKey)});
                 return initial;
             }
 
             if (special1 === 'color-clear') targetMap[key1] = tileColor(r2, c2);
             if (special2 === 'color-clear') targetMap[key2] = tileColor(r1, c1);
             // All bomb combinations use the same queue, including collateral specials.
-            return expandSpecialEffects(initial, targetMap);
+            return expandSpecialEffects(initial, targetMap, new Set(), effects);
         }
         function applyGravity() {
             for (let c = 0; c < BOARD_SIZE; c++) {
@@ -403,15 +411,23 @@
             // Longer lines take precedence at intersections.
             const generated = detectSpecialTiles(groups.slice().sort((a,b) => b.cells.length-a.cells.length), preferred);
             const protectedKeys = new Set(generated.map(p => coordKey(p.r,p.c)));
-            const cells = Array.from(expandSpecialEffects(keys, {}, protectedKeys), parseCoordKey);
-            return { cells, generated };
+            const effects = [];
+            const cells = Array.from(expandSpecialEffects(keys, {}, protectedKeys, effects), parseCoordKey);
+            return { cells, generated, effects };
         }
         // Prepare a wave, then the renderer may animate it before clearing.
         function beginSwap(r1,c1,r2,c2) {
             if (!isLegalSwap(r1,c1,r2,c2)) return null;
             swapTiles(r1,c1,r2,c2);
-            const special = resolveSpecialSwap(r1,c1,r2,c2);
-            return special ? { cells: Array.from(special, parseCoordKey), generated: [] } : matchWave([{r:r2,c:c2},{r:r1,c:c1}]);
+            const effects = [];
+            const special = resolveSpecialSwap(r1,c1,r2,c2,effects);
+            return special ? { cells: Array.from(special, parseCoordKey), generated: [], effects } : matchWave([{r:r2,c:c2},{r:r1,c:c1}]);
+        }
+        // Clone for preview: live board, RNG and refill queue stay untouched.
+        function previewSwap(r1,c1,r2,c2) {
+            const copy = createEngine({size:BOARD_SIZE,typeCount,seed:rngState});
+            copy.setBoard(board);
+            return copy.beginSwap(r1,c1,r2,c2);
         }
         function clearAndRefill(wave) {
             wave.cells.forEach(({r,c}) => { board[r][c] = null; });
@@ -429,7 +445,7 @@
             get board() { return board; }, get rngState() { return rngState; },
             set rngState(value) { rngState = value >>> 0; },
             setBoard, setRefill, initBoard, makeTile, tileColor, tileSpecial,
-            findMatchGroups, findLegalMove, isLegalSwap, beginSwap, matchWave,
+            findMatchGroups, findLegalMove, isLegalSwap, beginSwap, previewSwap, matchWave,
             clearAndRefill, expandSpecialEffects, shuffle, ensurePlayable,
             calcClearScore, finishMove
         };

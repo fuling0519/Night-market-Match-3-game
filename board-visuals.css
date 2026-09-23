@@ -1,0 +1,40 @@
+/* Four independent layers: tint, silhouette, badge, idle effect. */
+.tile { background: #211d29; min-width: 0; min-height: 0; }
+.tile-base { position: absolute; inset: 0; background: rgb(var(--food-tint) / 26%); border: 1px solid rgb(var(--food-tint) / 48%); border-radius: inherit; }
+.tile .tile-food, .tile.special .tile-food { position: absolute; inset: 5%; width: 90%; height: 90%; object-fit: contain; z-index: 1; }
+.tile-mark { position: absolute; right: 1px; bottom: 1px; z-index: 3; pointer-events: none; }
+.special-bomb .tile-mark { width: 42%; height: 42%; background: #331f08; border: 1.5px solid #ffe5a0; border-radius: 50%; color: #ffe19c; font-size: 10px; }
+.tile.special .tile-mark img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.special-color .tile-mark { color: white; font-size: 14px; text-shadow: 0 1px 3px #39063f; }
+.tile-effect { position: absolute; inset: 5%; pointer-events: none; z-index: 2; border-radius: 50%; }
+.special-bomb { box-shadow: inset 0 0 0 2px #ffe5a0 !important; }
+.special-bomb .tile-effect { border: 1px solid #ffd881; animation: bombPulse 1.8s ease-in-out infinite; }
+.special-bomb .tile-effect::before, .special-bomb .tile-effect::after { content: ''; position: absolute; width: 3px; height: 3px; background: #fff1a1; border-radius: 50%; top: 0; left: 20%; box-shadow: 0 0 4px #ffa635; }
+.special-bomb .tile-effect::after { top: 65%; left: 95%; }
+.special-color .tile-base { background: conic-gradient(from 30deg, #ec76a944, #ffcf6844, #72e8c544, #67bfff44, #b67bff44, #ec76a944); }
+.special-color .tile-effect { inset: 3%; border: 2px solid; border-color: #ff8ac4 #ffe681 #68eacb #a29aff; animation: rainbowTurn 5s linear infinite; }
+@keyframes bombPulse { 50% { opacity: .45; transform: scale(.88); } }
+@keyframes rainbowTurn { to { transform: rotate(360deg); } }
+#special-fx-layer { position: absolute; inset: 0; pointer-events: none; z-index: 12; overflow: hidden; border-radius: 14px; }
+.effect-cell { position: absolute; border-radius: 7px; box-sizing: border-box; }
+.effect-cell.target { border: 2px solid #ffe59a; background: #ffcd6426; }
+.preview .effect-cell.target { border-style: dashed; background: #ffed9920; }
+.effect-cell.bomb-source { border: 3px solid #fff5d4; box-shadow: inset 0 0 12px #ffc34e; }
+.effect-cell.color-source { border: 3px solid #f4baff; }
+.effect-cell.generated { border: 3px solid white; background: #fff3; animation: specialBorn 380ms ease-out; }
+.effect-cell.generated::after { content: '✦'; color: white; position: absolute; right: 0; top: 0; text-shadow: 0 1px 3px #3a124f; }
+.effect-line { position: absolute; height: 1px; background: #f5bfff; opacity: .6; transform-origin: left center; }
+@keyframes specialBorn { from { transform: scale(.7); } to { transform: scale(1); } }
+.motion-setting { color: #ffe7bd; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.motion-setting select { background: #291925; color: #fff3db; border: 1px solid #b98b55; border-radius: 6px; padding: 6px; }
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after { animation: none !important; transition: none !important; }
+.reduce-motion .tile.swapping { transform: none; }
+.reduce-motion .tile.matching { opacity: .55; outline: 2px solid #ffe59a; }
+.reduce-motion #combo-banner.show { opacity: 1; transform: none; }
+@media (max-width: 400px) {
+    #board-wrap { padding: 6px; border-width: 4px; }
+    #board { padding: 4px; gap: 3px; border-width: 2px; }
+}
+.activation .bomb-source { animation: detonate 380ms ease-out; }
+.activation .color-source { animation: detonate 380ms ease-out; }
+@keyframes detonate { from { box-shadow: inset 0 0 20px white; } to { box-shadow: inset 0 0 2px white; } }

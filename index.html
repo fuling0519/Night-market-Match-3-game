@@ -873,6 +873,7 @@
             text-shadow: 0 4px 0 #140024, 0 0 16px rgba(255, 235, 59, 0.8), 0 8px 24px rgba(170, 0, 255, 0.7), 0 12px 24px rgba(0, 0, 0, 0.9);
         }
     </style>
+    <link rel="stylesheet" href="board-visuals.css">
 </head>
 
 <body>
@@ -908,10 +909,12 @@
         </div>
         <div id="board-wrap">
             <div id="board"></div>
+            <div id="special-fx-layer" aria-hidden="true"></div>
             <div id="fx-layer" aria-hidden="true"></div>
             <div id="combo-banner" aria-hidden="true"></div>
         </div>
         <div id="board-status" role="status" style="min-height:1.5em;text-align:center;color:#ffd76a"></div>
+        <label class="motion-setting">動態效果 <select id="motion-setting" aria-label="動態效果"><option value="system">依系統偏好</option><option value="reduce">減少動態</option><option value="full">完整效果</option></select></label>
         <button class="btn btn-ghost" type="button" id="btn-back-home">返回首頁</button>
         <div id="result-overlay" aria-hidden="true">
             <div class="result-card">
@@ -926,7 +929,9 @@
 
     <script src="js/game-engine.js"></script>
     <script src="js/progress-store.js"></script>
+    <script src="js/board-visuals.js"></script>
     <script>
+        initMotionSetting();
         const bgmPlayer = document.getElementById('bgm-player');
         const bgmToggle = document.getElementById('bgm-toggle');
         const MAIN_BGM = 'assets/audio/Midnight_Market_Rush.mp3';
@@ -1084,6 +1089,7 @@
         let comboTimer = null;
 
         function cancelGameSession() {
+            clearSpecialEffects();
             gameSession++;
             entryAnimationToken++;
             touchStartTile = null;
@@ -1265,36 +1271,14 @@
                     const tile = document.createElement('div');
                     tile.classList.add('tile');
 
-                    const special = tileSpecial(r, c);
-                    if (special) {
-                        tile.classList.add('special');
-                        tile.classList.add(special === 'bomb' ? 'special-bomb' : 'special-color');
-                        const specialImg = document.createElement('img');
-                        if (special === 'bomb') {
-                            specialImg.src = 'assets/images/item-takoyaki.webp';
-                            specialImg.alt = '章魚燒炸彈';
-                        } else {
-                            specialImg.src = 'assets/images/item-marshmallow.webp';
-                            specialImg.alt = '彩虹棉花糖';
-                        }
-                        tile.appendChild(specialImg);
-                    } else if (board[r][c] !== null) {
-                        const typeIndex = tileColor(r, c);
-                        const type = CANDY_TYPES[typeIndex];
-                        tile.style.backgroundImage = "url('" + ITEM_SPRITE_URL + "')";
-                        tile.style.backgroundRepeat = 'no-repeat';
-                        tile.style.backgroundSize = (ITEM_SPRITE_COLS * 100) + '% 100%';
-                        tile.style.backgroundPosition = (type.spriteIndex * 100 / (ITEM_SPRITE_COLS - 1)) + '% 0%';
-                        tile.title = type.name;
-                    } else {
-                        tile.style.backgroundColor = 'transparent';
-                    }
+                    decorateTile(tile, board[r][c], CANDY_TYPES);
 
                     tile.dataset.row = r;
                     tile.dataset.col = c;
 
                     tile.addEventListener('pointerdown', onPointerDown);
                     tile.addEventListener('pointerup', onPointerUp);
+                    tile.addEventListener('pointermove', onPointerMove);
                     tile.addEventListener('pointercancel', onPointerCancel);
                     tile.addEventListener('lostpointercapture', onPointerCancel);
                     boardElement.appendChild(tile);
@@ -1316,8 +1300,23 @@
 
         function onPointerCancel(e) {
             if (e.pointerId !== activePointerId) return;
+            clearSpecialEffects();
             activePointerId = null;
             touchStartTile = null;
+            clearSpecialEffects();
+        }
+
+        function onPointerMove(e) {
+            if (e.pointerId !== activePointerId || !touchStartTile || isBusy) return;
+            const dx = e.clientX - touchStartX, dy = e.clientY - touchStartY;
+            clearSpecialEffects();
+            if (Math.max(Math.abs(dx),Math.abs(dy)) < 20) return;
+            const {r,c} = touchStartTile;
+            const rr = r + (Math.abs(dy) >= Math.abs(dx) ? Math.sign(dy) : 0);
+            const cc = c + (Math.abs(dx) > Math.abs(dy) ? Math.sign(dx) : 0);
+            if (rr < 0 || rr >= BOARD_SIZE || cc < 0 || cc >= BOARD_SIZE) return;
+            if (!tileSpecial(r,c) && !tileSpecial(rr,cc)) return;
+            showSpecialEffects(engine.previewSwap(r,c,rr,cc), true);
         }
 
         function onPointerUp(e) {
@@ -1350,6 +1349,7 @@
 
         async function swapTilesAndCheck(r1, c1, r2, c2) {
             if (isBusy || levelOver) return;
+            clearSpecialEffects();
             const token = gameSession;
             const activeEngine = engine;
             document.getElementById('board-status').textContent = '';
@@ -1403,6 +1403,7 @@
             while (wave) {
                 if (token !== gameSession) return;
                 renderBoard();
+                showSpecialEffects(wave, false);
                 const points = activeEngine.calcClearScore(wave.cells.length, combo);
                 score += points;
                 updateHud();
@@ -1414,6 +1415,7 @@
                 playMatchAnimation(wave.cells);
                 await wait(MATCH_ANIM_MS);
                 if (token !== gameSession) return;
+                clearSpecialEffects();
                 const drop = activeEngine.clearAndRefill(wave);
                 board = activeEngine.board;
                 renderBoard();
@@ -1457,12 +1459,14 @@
         }
 
         function spawnParticles(matches) {
+            if (reducedMotion()) return;
+            let budget = Math.max(0, 72 - fxLayer.children.length);
             const isBigMatch = matches.length >= 6;
             matches.forEach(function (pos) {
                 const center = getTileCenter(pos.r, pos.c);
                 const kinds = ['star', 'dot', 'spark'];
                 const count = (isBigMatch ? 6 : 3) + Math.floor(Math.random() * 2);
-                for (let i = 0; i < count; i++) {
+                for (let i = 0; i < count && budget > 0; i++, budget--) {
                     const el = document.createElement('div');
                     const kind = kinds[i % kinds.length];
                     el.className = 'fx-particle ' + kind;
@@ -1480,6 +1484,8 @@
         }
 
         function spawnFloatWords(matches) {
+            if (reducedMotion()) return;
+            matches = matches.filter((_, i) => i % Math.max(1, Math.ceil(matches.length / 6)) === 0).slice(0,6);
             const word = '香！';
 
             matches.forEach(function (pos, index) {
@@ -1499,6 +1505,7 @@
         }
 
         function triggerBoardShake(combo, matchCount) {
+            if (reducedMotion()) return;
             boardElement.classList.remove('shake-sm', 'shake-md', 'shake-lg');
             void boardElement.offsetWidth;
             if (combo >= 4 || matchCount >= 6) {
