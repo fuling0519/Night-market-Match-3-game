@@ -22,23 +22,24 @@ function initMotionSetting() {
 function decorateTile(tile, data, types) {
     if (!data) return;
     const rainbow = data.special === 'color-clear';
-    const name = rainbow ? '彩虹棉花糖' : types[data.color].name;
-    tile.style.setProperty('--food-tint', rainbow ? '207 141 255' : FOOD_TINTS[data.color]);
+    const bomb = data.special === 'bomb';
+    const row = data.special === 'row-clear';
+    const column = data.special === 'column-clear';
+    const name = rainbow ? '彩虹棉花糖' : bomb ? '章魚燒炸彈' : types[data.color].name;
+    tile.style.setProperty('--food-tint', rainbow ? '207 141 255' : bomb ? '255 158 60' : FOOD_TINTS[data.color]);
     const base = document.createElement('span'); base.className = 'tile-base'; tile.appendChild(base);
     const food = document.createElement('img'); food.className = 'tile-food';
-    food.src = rainbow ? 'assets/images/item-marshmallow.webp' : types[data.color].img;
+    food.src = rainbow ? 'assets/images/item-marshmallow.webp' : bomb ? 'assets/images/item-takoyaki.webp' :
+        row || column ? types[data.color].enhancedImg : types[data.color].img;
     food.alt = ''; food.draggable = false; tile.appendChild(food);
     const mark = document.createElement('span'); mark.className = 'tile-mark';
     if (data.special) {
-        tile.classList.add('special', rainbow ? 'special-color' : 'special-bomb');
-        mark.textContent = rainbow ? '✦' : '✹';
-        if (!rainbow) {
-            const badge = document.createElement('img'); badge.src = 'assets/images/item-takoyaki.webp'; badge.alt = ''; mark.appendChild(badge);
-        }
+        tile.classList.add('special', rainbow ? 'special-color' : bomb ? 'special-bomb' : row ? 'special-row' : 'special-column');
+        mark.textContent = rainbow ? '✦' : bomb ? '✹' : row ? '↔' : '↕';
     }
     tile.appendChild(mark);
     const fx = document.createElement('span'); fx.className = 'tile-effect'; tile.appendChild(fx);
-    tile.title = name + (data.special === 'bomb' ? '・章魚燒炸彈（3×3）' : '');
+    tile.title = name + (bomb ? '（3×3）' : row ? '・橫向清除整列' : column ? '・縱向清除整欄' : rainbow ? '・清除同類食物' : '');
     tile.setAttribute('aria-label', tile.title);
 }
 function clearSpecialEffects() {
@@ -60,13 +61,38 @@ function showSpecialEffects(wave, preview) {
         el.style.top = (rect.top-wrap.top-(boardWrap.clientTop || 0))+'px';
         el.style.width = rect.width+'px'; el.style.height = rect.height+'px'; layer.appendChild(el);
     }
+    function area(cells, kind) {
+        if (!cells.length) return;
+        const rects = cells.map(p => boardElement.querySelector('[data-row="'+p.r+'"][data-col="'+p.c+'"]'))
+            .filter(Boolean).map(tile => tile.getBoundingClientRect());
+        if (!rects.length) return;
+        const left = Math.min(...rects.map(r => r.left)), top = Math.min(...rects.map(r => r.top));
+        const right = Math.max(...rects.map(r => r.left+r.width)), bottom = Math.max(...rects.map(r => r.top+r.height));
+        const el = document.createElement('span'); el.className = kind;
+        el.style.left = (left-wrap.left-(boardWrap.clientLeft || 0))+'px';
+        el.style.top = (top-wrap.top-(boardWrap.clientTop || 0))+'px';
+        el.style.width = (right-left)+'px'; el.style.height = (bottom-top)+'px'; layer.appendChild(el);
+    }
     if (wave.effects?.length) {
         wave.cells.forEach(p => box(p, 'target'));
         const connected = new Set();
+        let flakes = 0;
         // At most 64 lines across all sources; cell highlights always show the full union.
         for (const effect of wave.effects) {
-            box(effect, effect.special === 'bomb' ? 'bomb-source' : 'color-source');
-            if (effect.special === 'bomb') continue;
+            if (effect.special === 'bomb') {
+                box(effect, 'bomb-source');
+                if (!preview) {
+                    area(effect.cells, 'bomb-wave' + (!reducedMotion() && flakes++ < 8 ? ' with-flakes' : ''));
+                }
+                continue;
+            }
+            if (effect.special === 'row-clear' || effect.special === 'column-clear') {
+                const direction = effect.special === 'row-clear' ? 'row' : 'column';
+                box(effect, direction+'-source');
+                area(effect.cells, 'line-sweep '+direction);
+                continue;
+            }
+            box(effect, 'color-source');
             const a = getTileCenter(effect.r,effect.c);
             for (const p of effect.cells) {
                 const key = p.r+','+p.c; if (connected.has(key)) continue; connected.add(key);

@@ -3,8 +3,10 @@
 .tile-base { position: absolute; inset: 0; background: rgb(var(--food-tint) / 26%); border: 1px solid rgb(var(--food-tint) / 48%); border-radius: inherit; }
 .tile .tile-food, .tile.special .tile-food { position: absolute; inset: 5%; width: 90%; height: 90%; object-fit: contain; z-index: 1; }
 .tile-mark { position: absolute; right: 1px; bottom: 1px; z-index: 3; pointer-events: none; }
-.special-bomb .tile-mark { width: 42%; height: 42%; background: #331f08; border: 1.5px solid #ffe5a0; border-radius: 50%; color: #ffe19c; font-size: 10px; }
-.tile.special .tile-mark img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.special-bomb .tile-mark { color: #ffe19c; font-size: 14px; text-shadow: 0 1px 3px #331f08; }
+.special-row .tile-mark, .special-column .tile-mark { color: white; background: #251327ed; border: 1px solid #ffefae; border-radius: 4px; font: bold 16px/1 sans-serif; min-width: 16px; text-align: center; }
+.special-row .tile-effect { inset: 38% 3%; border-top: 1px solid #ffefae; border-bottom: 1px solid #ffefae; border-radius: 0; }
+.special-column .tile-effect { inset: 3% 38%; border-left: 1px solid #ffefae; border-right: 1px solid #ffefae; border-radius: 0; }
 .special-color .tile-mark { color: white; font-size: 14px; text-shadow: 0 1px 3px #39063f; }
 .tile-effect { position: absolute; inset: 5%; pointer-events: none; z-index: 2; border-radius: 50%; }
 .special-bomb { box-shadow: inset 0 0 0 2px #ffe5a0 !important; }
@@ -21,12 +23,27 @@
 .preview .effect-cell.target { border-style: dashed; background: #ffed9920; }
 .effect-cell.bomb-source { border: 3px solid #fff5d4; box-shadow: inset 0 0 12px #ffc34e; }
 .effect-cell.color-source { border: 3px solid #f4baff; }
+.effect-cell.row-source, .effect-cell.column-source { border: 3px solid #fffbd3; }
+.line-sweep { position: absolute; overflow: hidden; border-radius: 4px; }
+.line-sweep.row { border-top: 1px solid #fff2a2; border-bottom: 1px solid #fff2a2; }
+.line-sweep.column { border-left: 1px solid #fff2a2; border-right: 1px solid #fff2a2; }
+.activation .line-sweep::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, #fff4b9aa, transparent); animation: sweepRow 380ms ease-out; }
+.activation .line-sweep.column::after { background: linear-gradient(transparent, #fff4b9aa, transparent); animation-name: sweepColumn; }
+.bomb-wave { position: absolute; border: 3px solid #ffc466; border-radius: 35%; box-shadow: inset 0 0 10px #ff9c4777; animation: bombWave 380ms ease-out; }
+.bomb-wave.with-flakes::before, .bomb-wave.with-flakes::after { content: ''; position: absolute; width: 8px; height: 3px; background: #e6b07c; border-radius: 80% 10%; left: 20%; top: 15%; transform: rotate(-25deg); }
+.bomb-wave.with-flakes::after { left: 75%; top: 80%; transform: rotate(35deg); }
+@keyframes sweepRow { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+@keyframes sweepColumn { from { transform: translateY(-100%); } to { transform: translateY(100%); } }
+@keyframes bombWave { from { transform: scale(.2); opacity: 1; } to { transform: scale(1); opacity: .35; } }
 .effect-cell.generated { border: 3px solid white; background: #fff3; animation: specialBorn 380ms ease-out; }
 .effect-cell.generated::after { content: '✦'; color: white; position: absolute; right: 0; top: 0; text-shadow: 0 1px 3px #3a124f; }
 .effect-line { position: absolute; height: 1px; background: #f5bfff; opacity: .6; transform-origin: left center; }
 @keyframes specialBorn { from { transform: scale(.7); } to { transform: scale(1); } }
 .motion-setting { color: #ffe7bd; font-size: 14px; display: flex; align-items: center; gap: 8px; }
 .motion-setting select { background: #291925; color: #fff3db; border: 1px solid #b98b55; border-radius: 6px; padding: 6px; }
+.special-guide { width: min(520px, 100%); margin-top: 12px; text-align: left; color: #fff0cf; background: #241418e8; border: 1px solid #8a6545; border-radius: 8px; padding: 8px 12px; font-size: 13px; line-height: 1.6; }
+.special-guide summary { cursor: pointer; }
+.special-guide p { margin: 8px 0; }
 .reduce-motion *, .reduce-motion *::before, .reduce-motion *::after { animation: none !important; transition: none !important; }
 .reduce-motion .tile.swapping { transform: none; }
 .reduce-motion .tile.matching { opacity: .55; outline: 2px solid #ffe59a; }

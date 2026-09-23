@@ -33,24 +33,26 @@ test('three-match via swap clears exactly the matched cells',()=>{
     assert.equal(w.cells.length,3); assert.equal(w.generated.length,0);
     assert.ok([0,1,2].every(c=>has(w,0,c)));
 });
-for (const [length,special] of [[4,'bomb'],[5,'color-clear'],[6,'color-clear']]) {
+for (const [length,special] of [[4,'row-clear'],[5,'color-clear'],[6,'color-clear']]) {
     test(`${length}-match creates ${special} at preferred cell`,()=>{
         const e=fixture(b=>{ for(let c=0;c<length;c++) b[3][c]=0; });
         const w=e.matchWave([{r:3,c:1}]);
         assert.equal(e.tileSpecial(3,1),special); assert.ok(!has(w,3,1));
         assert.equal(w.generated.length,1);
-        assert.equal(e.tileColor(3,1),special==='bomb'?0:null);
+        assert.equal(e.tileColor(3,1),special==='row-clear'?0:null);
     });
 }
-test('T intersection clears once and does not create an unsupported special',()=>{
+test('cross intersection creates one colorless bomb and clears the other four cells once',()=>{
     const e=fixture(b=>{b[3][2]=b[3][3]=b[3][4]=b[2][3]=b[4][3]=0;});
-    const w=e.matchWave(); assert.equal(w.cells.length,5);assert.equal(w.generated.length,0);
+    const w=e.matchWave(); assert.equal(w.cells.length,4);assert.equal(w.generated.length,1);
+    assert.deepEqual(e.board[3][3],{color:null,special:'bomb'});
 });
 test('new special survives an existing bomb in the same wave',()=>{
-    const e=fixture(b=>{b[3][0]=0;b[3][1]={color:0,special:'bomb'};b[3][2]=0;b[3][3]=0;});
+    const e=fixture(b=>{b[3][0]=0;b[3][1]={color:0,special:'row-clear'};b[3][2]=0;b[3][3]=0;b[3][5]={color:null,special:'bomb'};});
     const w=e.matchWave([{r:3,c:2}]);
-    assert.equal(e.tileSpecial(3,2),'bomb'); assert.ok(!has(w,3,2));
-    e.clearAndRefill(w);assert.ok(e.board.flat().some(t=>t.special==='bomb'));
+    assert.equal(e.tileSpecial(3,2),'row-clear'); assert.ok(!has(w,3,2));
+    assert.ok(w.effects.some(e=>e.special==='bomb'));
+    e.clearAndRefill(w);assert.ok(e.board.flat().some(t=>t.special==='row-clear'));
 });
 test('bomb detonates at its destination, including at edges',()=>{
     const e=fixture(b=>{b[0][1]={color:2,special:'bomb'};});
@@ -75,10 +77,12 @@ test('double cotton clears all 64 cells',()=>{
     const e=fixture(b=>{b[0][0]=b[0][1]={color:null,special:'color-clear'};});
     assert.equal(e.beginSwap(0,0,0,1).cells.length,64);
 });
-test('cotton plus bomb uses the bomb color and explodes',()=>{
+test('cotton plus bomb uses the most common ordinary food and explodes',()=>{
     const e=fixture(b=>{b[0][0]={color:null,special:'color-clear'};b[0][1]={color:4,special:'bomb'};});
+    const counts=Array(5).fill(0);e.board.flat().forEach(t=>{if(!t.special)counts[t.color]++;});
+    const target=counts.indexOf(Math.max(...counts));
     const w=e.beginSwap(0,0,0,1); assert.ok(has(w,1,0));assert.ok(has(w,1,1));
-    e.board.forEach((row,r)=>row.forEach((t,c)=>{if(t.color===4) assert.ok(has(w,r,c));}));
+    e.board.forEach((row,r)=>row.forEach((t,c)=>{if(t.color===target) assert.ok(has(w,r,c));}));
 });
 test('collateral cotton chooses most common ordinary food, ties use lowest type',()=>{
     const e=fixture(b=>{b[0][0]={color:3,special:'bomb'};b[0][1]={color:null,special:'color-clear'};});

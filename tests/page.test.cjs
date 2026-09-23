@@ -135,13 +135,14 @@ test('dead board after refill is shuffled without extra score or move cost',asyn
 test('all levels retain their configured goals, moves and assets',async()=>{
     const h=harness(undefined,'5');
     for(let level=1;level<=5;level++){await h.start(level);assert.equal(h.run('currentLevelId'),level);assert.equal(h.run('movesLeft'),[20,18,16,14,12][level-1]);}
-    const assets=h.run('LEVELS.flatMap(lv=>[lv.bg,lv.bgm]).concat(CANDY_TYPES.map(t=>t.img),[ITEM_SPRITE_URL])');
+    const assets=h.run('LEVELS.flatMap(lv=>[lv.bg,lv.bgm]).concat(CANDY_TYPES.flatMap(t=>[t.img,t.enhancedImg]),[ITEM_SPRITE_URL])');
     for(const asset of assets)assert.ok(fs.existsSync(path.join(__dirname,'..',asset)),asset);
 });
 
 test('P2 preview equals actual special wave without consuming board, RNG or refill', () => {
     const {createEngine}=require('../js/game-engine.js');
-    for (const pair of [['bomb',null],['bomb','bomb'],['color-clear',null],['color-clear','bomb'],['color-clear','color-clear']]) {
+    const kinds=[null,'row-clear','column-clear','bomb','color-clear'];
+    for (const pair of kinds.flatMap(a=>kinds.filter(b=>a||b).map(b=>[a,b]))) {
         const e=createEngine({seed:75}); e.initBoard();
         e.board[0][0]=e.makeTile(1,pair[0]);e.board[0][1]=e.makeTile(2,pair[1]);
         e.board[1][1]=e.makeTile(3,'bomb');e.board[2][1]=e.makeTile(null,'color-clear');
@@ -158,11 +159,14 @@ test('P2 preview equals actual special wave without consuming board, RNG or refi
         e.clearAndRefill(actual);control.clearAndRefill(control.beginSwap(0,0,0,1));assert.deepEqual(e.board,control.board);assert.equal(e.rngState,control.rngState);
     }
 });
-test('P2 tiles preserve bomb food and give cotton its own silhouette',async()=>{
-    const h=harness();await h.start();h.run('engine.board[0][0]=engine.makeTile(2,"bomb");engine.board[0][1]=engine.makeTile(null,"color-clear");renderBoard()');
-    const [bomb,cotton]=h.elements.get('board').children;
-    assert.equal(bomb.children.length,4);assert.ok(bomb.children[1].src.endsWith('item-tofu.webp'));
-    assert.ok(bomb.title.includes('臭豆腐'));assert.ok(cotton.children[1].src.endsWith('item-marshmallow.webp'));
+test('P2 line foods use enhanced art and direction marks; bomb and cotton have independent silhouettes',async()=>{
+    const h=harness();await h.start();h.run('engine.board[0][0]=engine.makeTile(2,"row-clear");engine.board[0][1]=engine.makeTile(null,"color-clear");engine.board[0][2]=engine.makeTile(null,"bomb");engine.board[0][3]=engine.makeTile(4,"column-clear");renderBoard()');
+    const [row,cotton,bomb,column]=h.elements.get('board').children;
+    assert.equal(row.children.length,4);assert.ok(row.children[1].src.endsWith('item-tofu-4.webp'));
+    assert.ok(row.title.includes('臭豆腐'));assert.equal(row.children[2].textContent,'↔');
+    assert.ok(column.children[1].src.endsWith('item-grilledcorn-4.webp'));assert.equal(column.children[2].textContent,'↕');
+    assert.ok(bomb.children[1].src.endsWith('item-takoyaki.webp'));assert.ok(!bomb.title.includes('臭豆腐'));
+    assert.ok(cotton.children[1].src.endsWith('item-marshmallow.webp'));
 });
 test('P2 drag previews both special-source and special-destination swaps, then clears on cancel',async()=>{
     const h=harness();await h.start();h.run('engine.board[0][1]=engine.makeTile(2,"bomb");renderBoard();');
@@ -215,4 +219,42 @@ test('grilled corn occupies the existing fifth food slot in game and tutorial',a
     const tutorial=fs.readFileSync(path.join(__dirname,'../tutorial.html'),'utf8');
     assert.ok(tutorial.includes('item-grilledcorn.webp'));assert.ok(!tutorial.includes('item-oyster.webp'));
     assert.equal(h.run('ITEM_SPRITE_COLS'),5);assert.equal(h.run('ITEM_SPRITE_SIZE'),256);
+});
+
+for(const [special,direction,dr,dc] of [['row-clear','row',1,0],['column-clear','column',0,1]]) {
+    test(`${special} drag and activation display the engine targets and clear before the next move`,async()=>{
+        const h=harness();await h.start();h.run(h.fixture);
+        h.run(`engine.board[3][3]=engine.makeTile(2,'${special}');renderBoard();
+            var ev={currentTarget:boardElement.children[27],pointerId:7,isPrimary:true,button:0,clientX:180,clientY:180};
+            onPointerDown(ev);onPointerMove({...ev,clientX:${180+40*dc},clientY:${180+40*dr}});`);
+        const layer=h.elements.get('special-fx-layer');
+        const expected=JSON.parse(h.run(`JSON.stringify(engine.previewSwap(3,3,${3+dr},${3+dc}).cells.map(p=>p.r+','+p.c).sort())`));
+        const targets=()=>layer.children.filter(x=>x.className==='effect-cell target').map(x=>x.dataset.row+','+x.dataset.col).sort();
+        assert.deepEqual(targets(),expected);assert.equal(expected.length,8);
+        assert.ok(layer.children.some(x=>x.className===`line-sweep ${direction}`));
+        assert.equal(layer.children.filter(x=>x.className==='effect-line').length,0);
+        h.run(`onPointerUp({...ev,clientX:${180+40*dc},clientY:${180+40*dr}})`);
+        await h.advance(210);assert.equal(layer.className,'activation');assert.deepEqual(targets(),expected);
+        await h.drain();assert.equal(layer.children.length,0);assert.equal(h.run('movesLeft'),19);assert.equal(h.run('isBusy'),false);
+    });
+}
+test('reduced motion keeps line directions and ranges without bomb flakes',async()=>{
+    const h=harness(undefined,'0',{motion:'reduce'});await h.start();h.run(h.fixture);
+    h.run('engine.board[3][3]=engine.makeTile(1,"row-clear");engine.board[3][4]=engine.makeTile(null,"bomb");showSpecialEffects(engine.previewSwap(3,3,3,4),false)');
+    const layer=h.elements.get('special-fx-layer');
+    assert.ok(layer.children.some(x=>x.className==='line-sweep row'));
+    assert.ok(layer.children.some(x=>x.className==='bomb-wave'));
+    assert.ok(layer.children.every(x=>!x.className.includes('with-flakes')));
+    h.run('goHome()');assert.equal(layer.children.length,0);
+});
+test('dense special chain keeps each source unique, decorative flakes bounded, and cleans up',async()=>{
+    const h=harness();await h.start();
+    h.run('engine.setBoard(Array.from({length:8},()=>Array.from({length:8},()=>engine.makeTile(null,"bomb"))));board=engine.board;renderBoard();swapTilesAndCheck(0,0,0,1)');
+    await h.advance(210);
+    const children=h.elements.get('special-fx-layer').children;
+    assert.equal(children.filter(x=>x.className==='effect-cell target').length,64);
+    assert.equal(children.filter(x=>x.className==='effect-cell bomb-source').length,64);
+    assert.equal(children.filter(x=>x.className.includes('with-flakes')).length,8);
+    assert.ok(h.elements.get('fx-layer').children.length<=72);
+    await h.drain();assert.equal(h.elements.get('special-fx-layer').children.length,0);
 });

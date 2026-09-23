@@ -915,6 +915,13 @@
         </div>
         <div id="board-status" role="status" style="min-height:1.5em;text-align:center;color:#ffd76a"></div>
         <label class="motion-setting">動態效果 <select id="motion-setting" aria-label="動態效果"><option value="system">依系統偏好</option><option value="reduce">減少動態</option><option value="full">完整效果</option></select></label>
+        <details class="special-guide">
+            <summary>特殊方塊玩法</summary>
+            <p>橫向四消 → ↔ 清除整列；縱向四消 → ↕ 清除整欄。強化食物仍可參與同類配對。</p>
+            <p>T／L／十字交叉配對 → 章魚燒，炸開周圍 3×3；直線五消以上 → 彩虹棉花糖，清除交換食物的同類。</p>
+            <p>特殊方塊與任意鄰格交換即可發動，也能互相引爆。按住拖向鄰格可先看範圍；新生成的特殊當波保留。</p>
+            <p>棉花糖＋強化食物會清同類並引爆該類的強化食物；棉花糖＋章魚燒會清數量最多的普通食物並引爆章魚燒；雙棉花糖清全盤。其餘特殊組合各自發動，重疊格只清一次。</p>
+        </details>
         <button class="btn btn-ghost" type="button" id="btn-back-home">返回首頁</button>
         <div id="result-overlay" aria-hidden="true">
             <div class="result-card">
@@ -1042,11 +1049,11 @@
         const ITEM_SPRITE_COLS = 5;
         const ITEM_SPRITE_SIZE = 256;
         const CANDY_TYPES = [
-            { name: '珍奶', img: 'assets/images/item-boba.webp', spriteIndex: 0 },
-            { name: '地瓜球', img: 'assets/images/item-sweetpotato.webp', spriteIndex: 1 },
-            { name: '臭豆腐', img: 'assets/images/item-tofu.webp', spriteIndex: 2 },
-            { name: '雞排', img: 'assets/images/item-chicken.webp', spriteIndex: 3 },
-            { name: '烤玉米', img: 'assets/images/item-grilledcorn.webp', spriteIndex: 4 }
+            { name: '珍奶', img: 'assets/images/item-boba.webp', enhancedImg: 'assets/images/item-boba-4.webp', spriteIndex: 0 },
+            { name: '地瓜球', img: 'assets/images/item-sweetpotato.webp', enhancedImg: 'assets/images/item-sweetpotato-4.webp', spriteIndex: 1 },
+            { name: '臭豆腐', img: 'assets/images/item-tofu.webp', enhancedImg: 'assets/images/item-tofu-4.webp', spriteIndex: 2 },
+            { name: '雞排', img: 'assets/images/item-chicken.webp', enhancedImg: 'assets/images/item-chicken-4.webp', spriteIndex: 3 },
+            { name: '烤玉米', img: 'assets/images/item-grilledcorn.webp', enhancedImg: 'assets/images/item-grilledcorn-4.webp', spriteIndex: 4 }
         ];
 
         const boardElement = document.getElementById('board');

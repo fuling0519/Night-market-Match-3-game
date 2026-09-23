@@ -26,8 +26,8 @@
             const normalized = input.map(row => row.map(value => {
                 if (value === null) return null;
                 const tile = typeof value === 'number' ? makeTile(value) : makeTile(value.color, value.special || null);
-                if (![null, 'bomb', 'color-clear'].includes(tile.special)) throw new RangeError('Invalid special');
-                if (tile.special !== 'color-clear' && (!Number.isInteger(tile.color) || tile.color < 0 || tile.color >= typeCount)) throw new RangeError('Invalid food');
+                if (![null, 'row-clear', 'column-clear', 'bomb', 'color-clear'].includes(tile.special)) throw new RangeError('Invalid special');
+                if (!['bomb', 'color-clear'].includes(tile.special) && (!Number.isInteger(tile.color) || tile.color < 0 || tile.color >= typeCount)) throw new RangeError('Invalid food');
                 return tile;
             }));
             board = normalized;
@@ -50,7 +50,7 @@
         }
 
         function makeTile(color, special = null) {
-            return { color: special === 'color-clear' ? null : color, special: special };
+            return { color: ['bomb', 'color-clear'].includes(special) ? null : color, special: special };
         }
 
         function coordKey(r, c) {
@@ -119,49 +119,45 @@
             return groups;
         }
 
-        function chooseSpecialPlacement(group, preferred, occupied) {
-            const preferredList = [];
-            if (preferred) preferredList.push(preferred);
-            const center = getGroupCenter(group.cells || []);
-            if (center) preferredList.push(center);
-            const normalCells = (group.cells || []).filter(function (cell) {
-                return board[cell.r][cell.c] !== null && tileSpecial(cell.r, cell.c) === null;
-            });
-            if (normalCells.length) preferredList.push(normalCells[0]);
-
-            for (let i = 0; i < preferredList.length; i++) {
-                const candidate = preferredList[i];
-                if (!candidate) continue;
-                const key = coordKey(candidate.r, candidate.c);
-                if (occupied.has(key)) continue;
-                if (board[candidate.r][candidate.c] === null) continue;
-                if (tileSpecial(candidate.r, candidate.c) !== null) continue;
-                return candidate;
-            }
-            return null;
-        }
-
         function detectSpecialTiles(groups, preferredPositions) {
-            const occupied = new Set();
             const generated = [];
             const prefs = Array.isArray(preferredPositions) ? preferredPositions : [];
-
-            (groups || []).forEach(function (group) {
-                if (!group || !Array.isArray(group.cells) || group.cells.length < 4) return;
-
-                const special = group.cells.length >= 5 ? 'color-clear' : 'bomb';
-                const preferred = prefs.find(function (pos) {
-                    return group.cells.some(function (cell) {
-                        return cell && cell.r === pos.r && cell.c === pos.c;
-                    });
-                });
-                const location = chooseSpecialPlacement(group, preferred, occupied);
-                if (!location) return;
-                occupied.add(coordKey(location.r, location.c));
+            // Merge overlapping matched lines, never merely adjacent food.
+            // Each transitive component earns exactly one special.
+            const remaining = new Set(groups);
+            while (remaining.size) {
+                const first = remaining.values().next().value;
+                remaining.delete(first);
+                const component = [first];
+                const cells = new Map(first.cells.map(p => [coordKey(p.r,p.c), p]));
+                for (let i = 0; i < component.length; i++) {
+                    for (const group of remaining) {
+                        if (!group.cells.some(p => cells.has(coordKey(p.r,p.c)))) continue;
+                        remaining.delete(group);
+                        component.push(group);
+                        group.cells.forEach(p => cells.set(coordKey(p.r,p.c), p));
+                    }
+                }
+                const ordered = [...cells.values()].sort((a,b) => a.r-b.r || a.c-b.c);
+                const lines = component.slice().sort((a,b) => b.cells.length-a.cells.length ||
+                    a.cells[0].r-b.cells[0].r || a.cells[0].c-b.cells[0].c);
+                const longest = lines[0];
+                const intersections = ordered.filter(p => component.filter(g =>
+                    g.cells.some(q => q.r === p.r && q.c === p.c)).length > 1);
+                const special = longest.cells.length >= 5 ? 'color-clear' : intersections.length ? 'bomb' :
+                    longest.cells.length === 4 ? (longest.direction === 'horizontal' ? 'row-clear' : 'column-clear') : null;
+                if (!special) continue;
+                // Five-in-a-row rewards stay on the qualifying line; bombs
+                // prefer intersections. Never overwrite an existing special.
+                const eligible = special === 'bomb' ? ordered : longest.cells;
+                const preferred = prefs.filter(p => eligible.some(q => q.r === p.r && q.c === p.c));
+                const candidates = special === 'bomb' ? [...intersections, ...preferred, ...ordered] :
+                    [...preferred, getGroupCenter(eligible), ...eligible];
+                const location = candidates.find(p => board[p.r][p.c] && !tileSpecial(p.r,p.c));
+                if (!location) continue;
                 board[location.r][location.c] = makeTile(tileColor(location.r, location.c), special);
                 generated.push({ r: location.r, c: location.c, special: special });
-            });
-
+            }
             return generated;
         }
 
@@ -203,6 +199,13 @@
                     enqueue(key, null);
                 }
 
+                if (special === 'row-clear' || special === 'column-clear') {
+                    for (let i = 0; i < BOARD_SIZE; i++) {
+                        affect(special === 'row-clear' ? r : i, special === 'row-clear' ? i : c);
+                    }
+                    continue;
+                }
+
                 if (special === 'bomb') {
                     for (let rr = r - 1; rr <= r + 1; rr++) {
                         for (let cc = c - 1; cc <= c + 1; cc++) {
@@ -238,7 +241,9 @@
 
             const key1 = coordKey(r1, c1);
             const key2 = coordKey(r2, c2);
-            const initial = new Set([key1, key2]);
+            const initial = new Set();
+            if (special1) initial.add(key1);
+            if (special2) initial.add(key2);
             const targetMap = {};
 
             if (special1 === 'color-clear' && special2 === 'color-clear') {
@@ -253,7 +258,8 @@
 
             if (special1 === 'color-clear') targetMap[key1] = tileColor(r2, c2);
             if (special2 === 'color-clear') targetMap[key2] = tileColor(r1, c1);
-            // All bomb combinations use the same queue, including collateral specials.
+            // A colorless bomb requests the ordinary-food majority fallback.
+            // All combinations share the queue, including collateral line clears.
             return expandSpecialEffects(initial, targetMap, new Set(), effects);
         }
         function applyGravity() {
