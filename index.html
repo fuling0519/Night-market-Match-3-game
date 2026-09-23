@@ -911,6 +911,7 @@
             <div id="fx-layer" aria-hidden="true"></div>
             <div id="combo-banner" aria-hidden="true"></div>
         </div>
+        <div id="board-status" role="status" style="min-height:1.5em;text-align:center;color:#ffd76a"></div>
         <button class="btn btn-ghost" type="button" id="btn-back-home">返回首頁</button>
         <div id="result-overlay" aria-hidden="true">
             <div class="result-card">
@@ -923,6 +924,8 @@
         </div>
     </section>
 
+    <script src="js/game-engine.js"></script>
+    <script src="js/progress-store.js"></script>
     <script>
         const bgmPlayer = document.getElementById('bgm-player');
         const bgmToggle = document.getElementById('bgm-toggle');
@@ -979,6 +982,7 @@
         updateBgmToggle();
 
         function showScreen(screenId) {
+            if (screenId !== 'game-screen') cancelGameSession();
             document.querySelectorAll('.screen').forEach(function (el) {
                 el.classList.remove('active');
             });
@@ -1062,7 +1066,6 @@
         const SWAP_ANIM_MS = 205;
         const SWAP_BACK_ANIM_MS = 180;
         const LEVEL_ENTRY_ANIM_MS = 480;
-        const CLEARED_STORAGE_KEY = 'nightmarket-cleared-levels';
         let entryAnimationToken = 0;
 
         // ===== 最新關卡設定 =====
@@ -1074,7 +1077,24 @@
             { id: 5, name: '武聖夜市', title: '武聖夜市消消樂', goal: 2000, moves: 12, bg: 'assets/images/bg-wusheng.webp', bgm: 'assets/audio/grim_pursuit.mp3' }
         ];
 
+        let engine = NightMarketEngine.createEngine();
         let board = [];
+        let gameSession = 0;
+        let activePointerId = null;
+        let comboTimer = null;
+
+        function cancelGameSession() {
+            gameSession++;
+            entryAnimationToken++;
+            touchStartTile = null;
+            activePointerId = null;
+            isBusy = false;
+            levelOver = true;
+            clearTimeout(comboTimer);
+            if (fxLayer) fxLayer.innerHTML = '';
+            if (comboBanner) comboBanner.className = '';
+            boardElement.classList.remove('busy', 'shake-sm', 'shake-md', 'shake-lg');
+        }
         let touchStartX = 0;
         let touchStartY = 0;
         let touchStartTile = null;
@@ -1083,15 +1103,17 @@
         let currentLevelId = 1;
         let movesLeft = 20;
         let levelOver = false;
+        const progressStore = NightMarketProgress.createProgressStore(() => localStorage, LEVELS.length);
 
         function getClearedCount() {
-            const raw = parseInt(localStorage.getItem(CLEARED_STORAGE_KEY), 10);
-            if (isNaN(raw) || raw < 0) return 0;
-            return Math.min(LEVELS.length, raw);
+            return progressStore.read();
         }
 
         function setClearedCount(count) {
-            localStorage.setItem(CLEARED_STORAGE_KEY, String(Math.max(getClearedCount(), count)));
+            progressStore.write(count);
+            if (progressStore.unavailable) {
+                document.getElementById('board-status').textContent = '瀏覽器無法儲存，進度僅保留到本頁關閉。';
+            }
         }
 
         function isLevelUnlocked(levelId) {
@@ -1186,6 +1208,8 @@
                 showScreen('level-screen');
                 return;
             }
+            cancelGameSession();
+            document.getElementById('board-status').textContent = progressStore.unavailable ? '瀏覽器無法儲存，進度僅保留到本頁關閉。' : '';
             const lv = getLevelConfig(levelId);
             currentLevelId = lv.id;
             score = 0;
@@ -1207,50 +1231,16 @@
             await playLevelEntryAnimation();
         }
 
-        function getBaseClearScore(count) {
-            if (count >= 8) return 180;
-            if (count === 7) return 140;
-            if (count === 6) return 110;
-            if (count === 5) return 80;
-            if (count === 4) return 50;
-            if (count === 3) return 30;
-            return 0;
-        }
-
-        function getComboMultiplier(combo) {
-            if (combo >= 7) return 4;
-            if (combo === 6) return 3.5;
-            if (combo === 5) return 3;
-            if (combo === 4) return 2.5;
-            if (combo === 3) return 2;
-            if (combo === 2) return 1.5;
-            return 1;
-        }
-
-        function getComboBonus(combo) {
-            if (combo >= 7) return 100;
-            if (combo === 6) return 80;
-            if (combo === 5) return 60;
-            if (combo === 4) return 40;
-            if (combo === 3) return 20;
-            if (combo === 2) return 10;
-            return 0;
-        }
-
-        function calcClearScore(matchCount, combo) {
-            return Math.round(getBaseClearScore(matchCount) * getComboMultiplier(combo) + getComboBonus(combo));
-        }
-
         function finishMove() {
             if (levelOver) return;
-            movesLeft = Math.max(0, movesLeft - 1);
+            const outcome = engine.finishMove(score, movesLeft, getLevelConfig(currentLevelId).goal);
+            movesLeft = outcome.movesLeft;
             updateHud();
-            const goal = getLevelConfig(currentLevelId).goal;
-            if (score >= goal) {
+            if (outcome.result === 'won') {
                 levelOver = true;
                 setClearedCount(currentLevelId);
                 showResultOverlay(true);
-            } else if (movesLeft <= 0) {
+            } else if (outcome.result === 'lost') {
                 levelOver = true;
                 showResultOverlay(false);
             }
@@ -1258,270 +1248,13 @@
 
         renderLevelList();
 
-        function tileColor(r, c) {
-            const t = board[r] && board[r][c];
-            if (t === null || typeof t === 'undefined') return null;
-            return typeof t === 'object' ? t.color : t;
-        }
-
-        function tileSpecial(r, c) {
-            const t = board[r] && board[r][c];
-            return t !== null && typeof t === 'object' && t.special ? t.special : null;
-        }
-
-        function makeTile(color, special = null) {
-            return special ? { color: color, special: special } : color;
-        }
-
-        function coordKey(r, c) {
-            return r + ',' + c;
-        }
-
-        function parseCoordKey(key) {
-            const parts = String(key).split(',');
-            return { r: Number(parts[0]), c: Number(parts[1]) };
-        }
-
-        function getGroupCenter(cells) {
-            if (!cells.length) return null;
-            return cells[Math.floor(cells.length / 2)];
-        }
-
-        function findMatchGroups() {
-            const groups = [];
-
-            for (let r = 0; r < BOARD_SIZE; r++) {
-                let start = 0;
-                while (start < BOARD_SIZE) {
-                    const firstColor = tileColor(r, start);
-                    if (firstColor === null) {
-                        start++;
-                        continue;
-                    }
-                    let end = start + 1;
-                    while (end < BOARD_SIZE && tileColor(r, end) === firstColor) {
-                        end++;
-                    }
-                    if (end - start >= 3) {
-                        const cells = [];
-                        for (let c = start; c < end; c++) {
-                            cells.push({ r, c });
-                        }
-                        groups.push({ cells, color: firstColor, direction: 'horizontal' });
-                    }
-                    start = end;
-                }
-            }
-
-            for (let c = 0; c < BOARD_SIZE; c++) {
-                let start = 0;
-                while (start < BOARD_SIZE) {
-                    const firstColor = tileColor(start, c);
-                    if (firstColor === null) {
-                        start++;
-                        continue;
-                    }
-                    let end = start + 1;
-                    while (end < BOARD_SIZE && tileColor(end, c) === firstColor) {
-                        end++;
-                    }
-                    if (end - start >= 3) {
-                        const cells = [];
-                        for (let r = start; r < end; r++) {
-                            cells.push({ r, c });
-                        }
-                        groups.push({ cells, color: firstColor, direction: 'vertical' });
-                    }
-                    start = end;
-                }
-            }
-
-            return groups;
-        }
-
-        function checkMatches() {
-            return findMatchGroups().flatMap(function (group) {
-                return group.cells;
-            });
-        }
-
-        function chooseSpecialPlacement(group, preferred, occupied) {
-            const preferredList = [];
-            if (preferred) preferredList.push(preferred);
-            const center = getGroupCenter(group.cells || []);
-            if (center) preferredList.push(center);
-            const normalCells = (group.cells || []).filter(function (cell) {
-                return board[cell.r][cell.c] !== null && tileSpecial(cell.r, cell.c) === null;
-            });
-            if (normalCells.length) preferredList.push(normalCells[0]);
-
-            for (let i = 0; i < preferredList.length; i++) {
-                const candidate = preferredList[i];
-                if (!candidate) continue;
-                const key = coordKey(candidate.r, candidate.c);
-                if (occupied.has(key)) continue;
-                if (board[candidate.r][candidate.c] === null) continue;
-                if (tileSpecial(candidate.r, candidate.c) !== null) continue;
-                return candidate;
-            }
-            return null;
-        }
-
-        function detectSpecialTiles(groups, preferredPositions) {
-            const occupied = new Set();
-            const generated = [];
-            const prefs = Array.isArray(preferredPositions) ? preferredPositions : [];
-
-            (groups || []).forEach(function (group) {
-                if (!group || !Array.isArray(group.cells) || group.cells.length < 4) return;
-
-                const special = group.cells.length >= 5 ? 'color-clear' : 'bomb';
-                const preferred = prefs.find(function (pos) {
-                    return group.cells.some(function (cell) {
-                        return cell && cell.r === pos.r && cell.c === pos.c;
-                    });
-                });
-                const location = chooseSpecialPlacement(group, preferred, occupied);
-                if (!location) return;
-                occupied.add(coordKey(location.r, location.c));
-                board[location.r][location.c] = makeTile(tileColor(location.r, location.c), special);
-                generated.push({ r: location.r, c: location.c, special: special });
-            });
-
-            return generated;
-        }
-
-        function expandSpecialEffects(initialCells, targetMap) {
-            const cellsToClear = new Set();
-            const queue = [];
-            const processed = new Set();
-
-            function enqueue(key, targetColor) {
-                if (!key) return;
-                const { r, c } = parseCoordKey(key);
-                if (r < 0 || r >= BOARD_SIZE || c < 0 || c >= BOARD_SIZE) return;
-                if (board[r][c] === null) return;
-                if (!cellsToClear.has(key)) cellsToClear.add(key);
-                const special = tileSpecial(r, c);
-                if (special && !processed.has(key)) {
-                    queue.push({ key, targetColor: targetColor !== undefined ? targetColor : null });
-                }
-            }
-
-            const keys = Array.from(initialCells || []);
-            keys.forEach(function (key) {
-                const explicitTarget = targetMap && targetMap[key];
-                enqueue(key, explicitTarget);
-            });
-
-            while (queue.length) {
-                const current = queue.shift();
-                const { r, c } = parseCoordKey(current.key);
-                if (board[r][c] === null) continue;
-                const special = tileSpecial(r, c);
-                if (!special || processed.has(current.key)) continue;
-                processed.add(current.key);
-
-                if (special === 'bomb') {
-                    for (let rr = r - 1; rr <= r + 1; rr++) {
-                        for (let cc = c - 1; cc <= c + 1; cc++) {
-                            if (rr < 0 || rr >= BOARD_SIZE || cc < 0 || cc >= BOARD_SIZE) continue;
-                            if (board[rr][cc] !== null) enqueue(coordKey(rr, cc), null);
-                        }
-                    }
-                    continue;
-                }
-
-                if (special === 'color-clear') {
-                    const target = current.targetColor !== null && current.targetColor !== undefined
-                        ? current.targetColor
-                        : tileColor(r, c);
-                    if (target === null || typeof target === 'undefined') continue;
-                    for (let rr = 0; rr < BOARD_SIZE; rr++) {
-                        for (let cc = 0; cc < BOARD_SIZE; cc++) {
-                            if (board[rr][cc] !== null && tileColor(rr, cc) === target) {
-                                enqueue(coordKey(rr, cc), null);
-                            }
-                        }
-                    }
-                }
-            }
-
-            return cellsToClear;
-        }
-
-        function resolveSpecialSwap(r1, c1, r2, c2) {
-            const special1 = tileSpecial(r1, c1);
-            const special2 = tileSpecial(r2, c2);
-            if (!special1 && !special2) return null;
-
-            const key1 = coordKey(r1, c1);
-            const key2 = coordKey(r2, c2);
-            const initial = new Set([key1, key2]);
-            const targetMap = {};
-
-            if (special1 === 'bomb' && special2 === 'bomb') {
-                const cells = new Set();
-                for (let rr = r1 - 1; rr <= r1 + 1; rr++) {
-                    for (let cc = c1 - 1; cc <= c1 + 1; cc++) {
-                        if (rr >= 0 && rr < BOARD_SIZE && cc >= 0 && cc < BOARD_SIZE && board[rr][cc] !== null) {
-                            cells.add(coordKey(rr, cc));
-                        }
-                    }
-                }
-                for (let rr = r2 - 1; rr <= r2 + 1; rr++) {
-                    for (let cc = c2 - 1; cc <= c2 + 1; cc++) {
-                        if (rr >= 0 && rr < BOARD_SIZE && cc >= 0 && cc < BOARD_SIZE && board[rr][cc] !== null) {
-                            cells.add(coordKey(rr, cc));
-                        }
-                    }
-                }
-                return cells;
-            }
-
-            if (special1 === 'color-clear' && special2 === 'color-clear') {
-                for (let r = 0; r < BOARD_SIZE; r++) {
-                    for (let c = 0; c < BOARD_SIZE; c++) {
-                        if (board[r][c] !== null) initial.add(coordKey(r, c));
-                    }
-                }
-                return initial;
-            }
-
-            if (special1 && !special2) {
-                if (special1 === 'color-clear') targetMap[key1] = tileColor(r2, c2);
-                if (special1 === 'bomb') return expandSpecialEffects(initial, targetMap);
-            }
-
-            if (special2 && !special1) {
-                if (special2 === 'color-clear') targetMap[key2] = tileColor(r1, c1);
-                if (special2 === 'bomb') return expandSpecialEffects(initial, targetMap);
-            }
-
-            if (special1 && special2) {
-                if (special1 === 'color-clear') targetMap[key1] = tileColor(r2, c2);
-                if (special2 === 'color-clear') targetMap[key2] = tileColor(r1, c1);
-            }
-
-            return expandSpecialEffects(initial, targetMap);
-        }
-
+        function tileColor(r, c) { return engine.tileColor(r, c); }
+        function tileSpecial(r, c) { return engine.tileSpecial(r, c); }
         function initBoard() {
-            isBusy = false;
+            engine = NightMarketEngine.createEngine({ size: BOARD_SIZE, typeCount: CANDY_TYPES.length });
+            engine.initBoard();
+            board = engine.board;
             boardElement.classList.remove('busy', 'shake-sm', 'shake-md', 'shake-lg');
-            for (let r = 0; r < BOARD_SIZE; r++) {
-                board[r] = [];
-                for (let c = 0; c < BOARD_SIZE; c++) {
-                    let randomType;
-                    do {
-                        randomType = Math.floor(Math.random() * CANDY_TYPES.length);
-                    } while (
-                        (c >= 2 && board[r][c - 1] === randomType && board[r][c - 2] === randomType) ||
-                        (r >= 2 && board[r - 1][c] === randomType && board[r - 2][c] === randomType)
-                    );
-                    board[r][c] = randomType;
-                }
-            }
             renderBoard();
         }
 
@@ -1562,13 +1295,16 @@
 
                     tile.addEventListener('pointerdown', onPointerDown);
                     tile.addEventListener('pointerup', onPointerUp);
+                    tile.addEventListener('pointercancel', onPointerCancel);
+                    tile.addEventListener('lostpointercapture', onPointerCancel);
                     boardElement.appendChild(tile);
                 }
             }
         }
 
         function onPointerDown(e) {
-            if (isBusy || levelOver) return;
+            if (isBusy || levelOver || activePointerId !== null || e.isPrimary === false || e.button !== 0) return;
+            activePointerId = e.pointerId;
             touchStartX = e.clientX;
             touchStartY = e.clientY;
             touchStartTile = {
@@ -1578,8 +1314,17 @@
             e.currentTarget.setPointerCapture(e.pointerId);
         }
 
+        function onPointerCancel(e) {
+            if (e.pointerId !== activePointerId) return;
+            activePointerId = null;
+            touchStartTile = null;
+        }
+
         function onPointerUp(e) {
-            if (isBusy || levelOver || !touchStartTile) return;
+            if (e.pointerId !== activePointerId) return;
+            activePointerId = null;
+            if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+            if (isBusy || levelOver || !touchStartTile) { touchStartTile = null; return; }
 
             const dx = e.clientX - touchStartX;
             const dy = e.clientY - touchStartY;
@@ -1604,6 +1349,10 @@
         }
 
         async function swapTilesAndCheck(r1, c1, r2, c2) {
+            if (isBusy || levelOver) return;
+            const token = gameSession;
+            const activeEngine = engine;
+            document.getElementById('board-status').textContent = '';
             const firstTile = boardElement.querySelector('[data-row="' + r1 + '"][data-col="' + c1 + '"]');
             const secondTile = boardElement.querySelector('[data-row="' + r2 + '"][data-col="' + c2 + '"]');
             if (!firstTile || !secondTile) return;
@@ -1611,6 +1360,9 @@
             isBusy = true;
             boardElement.classList.add('busy');
 
+            // Finished drop animations use fill-mode: both and transition: none.
+            // Release their transform before measuring/animating either swap tile.
+            clearDropAnimations([firstTile, secondTile]);
             const firstRect = firstTile.getBoundingClientRect();
             const secondRect = secondTile.getBoundingClientRect();
             firstTile.style.setProperty('--swap-x', (secondRect.left - firstRect.left) + 'px');
@@ -1623,26 +1375,18 @@
             secondTile.classList.add('swapping');
             await wait(SWAP_ANIM_MS);
 
-            swapTiles(r1, c1, r2, c2);
-
-            const specialSwapCells = resolveSpecialSwap(r1, c1, r2, c2);
-            if (specialSwapCells && specialSwapCells.size > 0) {
-                renderBoard();
-                await handleSpecialSwapResult(specialSwapCells, 1);
+            if (token !== gameSession) return;
+            const wave = activeEngine.beginSwap(r1, c1, r2, c2);
+            board = activeEngine.board;
+            if (wave) {
+                await resolveWaves(wave, token, activeEngine);
                 return;
             }
 
-            const matches = checkMatches();
-            if (matches.length > 0) {
-                renderBoard();
-                await handleMatches(matches, 1, { r: r2, c: c2 });
-                return;
-            }
-
-            swapTiles(r1, c1, r2, c2);
             firstTile.classList.add('swap-back');
             secondTile.classList.add('swap-back');
             await wait(SWAP_BACK_ANIM_MS);
+            if (token !== gameSession) return;
 
             firstTile.classList.remove('swapping', 'swap-back');
             secondTile.classList.remove('swapping', 'swap-back');
@@ -1654,138 +1398,47 @@
             boardElement.classList.remove('busy');
         }
 
-        function swapTiles(r1, c1, r2, c2) {
-            const temp = board[r1][c1];
-            board[r1][c1] = board[r2][c2];
-            board[r2][c2] = temp;
-        }
-
-        async function handleSpecialSwapResult(cellsToClear, combo) {
-            const finalSet = new Set(cellsToClear || []);
-            const cells = Array.from(finalSet).map(function (key) {
-                const { r, c } = parseCoordKey(key);
-                return { r, c };
-            });
-
-            if (!cells.length) {
-                isBusy = false;
-                boardElement.classList.remove('busy');
-                finishMove();
-                return;
+        async function resolveWaves(wave, token, activeEngine) {
+            let combo = 1;
+            while (wave) {
+                if (token !== gameSession) return;
+                renderBoard();
+                const points = activeEngine.calcClearScore(wave.cells.length, combo);
+                score += points;
+                updateHud();
+                showComboBanner(combo, wave.cells.length);
+                showScorePopup(points);
+                triggerBoardShake(combo, wave.cells.length);
+                spawnFloatWords(wave.cells);
+                spawnParticles(wave.cells);
+                playMatchAnimation(wave.cells);
+                await wait(MATCH_ANIM_MS);
+                if (token !== gameSession) return;
+                const drop = activeEngine.clearAndRefill(wave);
+                board = activeEngine.board;
+                renderBoard();
+                await wait(playDropAnimations(drop.fallMap, drop.newTiles, drop.newCountByCol));
+                if (token !== gameSession) return;
+                clearDropAnimations();
+                wave = activeEngine.matchWave();
+                combo++;
             }
-
-            const points = calcClearScore(cells.length, combo || 1);
-            score += points;
-            updateHud();
-            showComboBanner(combo || 1, cells.length);
-            showScorePopup(points);
-            triggerBoardShake(combo || 1, cells.length);
-            spawnFloatWords(cells);
-            spawnParticles(cells);
-            playMatchAnimation(cells);
-
-            await wait(MATCH_ANIM_MS);
-
-            cells.forEach(function ({ r, c }) {
-                board[r][c] = null;
-            });
-
-            const fallMap = getFallMap();
-            const newCountByCol = [];
-            for (let c = 0; c < BOARD_SIZE; c++) {
-                let holes = 0;
-                for (let r = 0; r < BOARD_SIZE; r++) {
-                    if (board[r][c] === null) holes++;
+            finishMove();
+            if (!levelOver) {
+                const result = activeEngine.ensurePlayable();
+                board = activeEngine.board;
+                if (result.shuffled) {
+                    renderBoard();
+                    document.getElementById('board-status').textContent = '沒有可交換的組合，已重新洗牌（不扣步）';
+                } else if (result.failed) {
+                    levelOver = true;
+                    showResultOverlay(false);
+                    resultTitle.textContent = '盤面需要重試';
+                    resultDesc.textContent = '盤面暫時無法恢復，請重試本關。';
                 }
-                newCountByCol[c] = holes;
             }
-
-            applyGravity();
-            const newTiles = fillNewTiles();
-            renderBoard();
-            const dropMs = playDropAnimations(fallMap, newTiles, newCountByCol);
-            await wait(dropMs);
-
-            const nextMatches = checkMatches();
-            if (nextMatches.length > 0) {
-                await handleMatches(nextMatches, (combo || 1) + 1, null);
-            } else {
-                isBusy = false;
-                boardElement.classList.remove('busy');
-                finishMove();
-            }
-        }
-
-        async function handleMatches(matches, combo, preferred) {
-            combo = combo || 1;
-            const groups = findMatchGroups();
-            const allMatchKeys = new Set(groups.flatMap(function (group) {
-                return group.cells.map(function (cell) {
-                    return coordKey(cell.r, cell.c);
-                });
-            }));
-            const generated = detectSpecialTiles(groups, preferred ? [preferred] : []);
-            const generatedKeys = new Set(generated.map(function (cell) {
-                return coordKey(cell.r, cell.c);
-            }));
-            const clearSet = new Set(allMatchKeys);
-            generatedKeys.forEach(function (key) {
-                clearSet.delete(key);
-            });
-
-            const finalSet = expandSpecialEffects(clearSet, {});
-            const cells = Array.from(finalSet).map(function (key) {
-                const { r, c } = parseCoordKey(key);
-                return { r, c };
-            });
-
-            if (!cells.length) {
-                isBusy = false;
-                boardElement.classList.remove('busy');
-                finishMove();
-                return;
-            }
-
-            const points = calcClearScore(cells.length, combo);
-            score += points;
-            updateHud();
-            showComboBanner(combo, cells.length);
-            showScorePopup(points);
-            triggerBoardShake(combo, cells.length);
-            spawnFloatWords(cells);
-            spawnParticles(cells);
-            playMatchAnimation(cells);
-
-            await wait(MATCH_ANIM_MS);
-
-            cells.forEach(function ({ r, c }) {
-                board[r][c] = null;
-            });
-
-            const fallMap = getFallMap();
-            const newCountByCol = [];
-            for (let c = 0; c < BOARD_SIZE; c++) {
-                let holes = 0;
-                for (let r = 0; r < BOARD_SIZE; r++) {
-                    if (board[r][c] === null) holes++;
-                }
-                newCountByCol[c] = holes;
-            }
-
-            applyGravity();
-            const newTiles = fillNewTiles();
-            renderBoard();
-            const dropMs = playDropAnimations(fallMap, newTiles, newCountByCol);
-            await wait(dropMs);
-
-            const nextMatches = checkMatches();
-            if (nextMatches.length > 0) {
-                await handleMatches(nextMatches, combo + 1, null);
-            } else {
-                isBusy = false;
-                boardElement.classList.remove('busy');
-                finishMove();
-            }
+            isBusy = false;
+            boardElement.classList.remove('busy');
         }
 
         function wait(ms) {
@@ -1883,7 +1536,9 @@
                 comboBanner.classList.add('combo-4');
             }
             comboBanner.classList.add('show');
-            setTimeout(() => comboBanner.classList.remove('show'), 600);
+            clearTimeout(comboTimer);
+            const token = gameSession;
+            comboTimer = setTimeout(() => { if (token === gameSession) comboBanner.classList.remove('show'); }, 600);
         }
 
         function playMatchAnimation(matches) {
@@ -1893,19 +1548,13 @@
             });
         }
 
-        function getFallMap() {
-            const map = {};
-            for (let c = 0; c < BOARD_SIZE; c++) {
-                let holes = 0;
-                for (let r = BOARD_SIZE - 1; r >= 0; r--) {
-                    if (board[r][c] === null) {
-                        holes++;
-                    } else if (holes > 0) {
-                        map[(r + holes) + ',' + c] = holes;
-                    }
-                }
+        function clearDropAnimations(tiles = boardElement.children) {
+            for (const tile of tiles) {
+                if (!tile.classList.contains('tile-drop') && !tile.classList.contains('tile-drop-new')) continue;
+                tile.classList.remove('tile-drop', 'tile-drop-new');
+                tile.style.removeProperty('animation-delay');
+                tile.style.removeProperty('--drop-from');
             }
-            return map;
         }
 
         function playDropAnimations(fallMap, newTiles, newCountByCol) {
@@ -1981,32 +1630,6 @@
 
             isBusy = false;
             boardElement.classList.remove('busy');
-        }
-
-        function applyGravity() {
-            for (let c = 0; c < BOARD_SIZE; c++) {
-                let emptyRow = BOARD_SIZE - 1;
-                for (let r = BOARD_SIZE - 1; r >= 0; r--) {
-                    if (board[r][c] !== null) {
-                        board[emptyRow][c] = board[r][c];
-                        if (emptyRow !== r) board[r][c] = null;
-                        emptyRow--;
-                    }
-                }
-            }
-        }
-
-        function fillNewTiles() {
-            const newTiles = new Set();
-            for (let r = 0; r < BOARD_SIZE; r++) {
-                for (let c = 0; c < BOARD_SIZE; c++) {
-                    if (board[r][c] === null) {
-                        board[r][c] = Math.floor(Math.random() * CANDY_TYPES.length);
-                        newTiles.add(r + ',' + c);
-                    }
-                }
-            }
-            return newTiles;
         }
 
         const tutorialParams = new URLSearchParams(window.location.search);

@@ -1,0 +1,139 @@
+// Run the real page script with a minimal DOM and a controllable clock.
+// This checks orchestration, not browser layout or native pointer behavior.
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+const html = fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
+
+function harness(url='file:///E:/game/index.html', legacy='0') {
+    class Element {
+        constructor(tag='div') {
+            this.tagName=tag;this.children=[];this.dataset={};this.events={};this.style={setProperty(){},removeProperty(){}};
+            this.classes=new Set();this.classList={add:(...names)=>names.forEach(n=>this.classes.add(n)),remove:(...names)=>names.forEach(n=>this.classes.delete(n)),contains:n=>this.classes.has(n)};
+            this.clientHeight=500;this.offsetWidth=500;this.src='';this.paused=true;this.muted=false;this.textContent='';
+        }
+        set className(v){this.classes=new Set(v.split(/\s+/).filter(Boolean));}
+        get className(){return [...this.classes].join(' ');}
+        set innerHTML(v){this.children=[];this.html=v;}
+        get innerHTML(){return this.html||'';}
+        addEventListener(k,fn){(this.events[k] ||= []).push(fn);}
+        appendChild(el){this.children.push(el);el.parent=this;return el;}
+        remove(){if(this.parent)this.parent.children=this.parent.children.filter(x=>x!==this);}
+        setAttribute(k,v){this[k]=v;}
+        getBoundingClientRect(){return {left:Number(this.dataset.col||0)*60,top:Number(this.dataset.row||0)*60,width:60,height:60};}
+        querySelector(selector){const m=selector.match(/data-row="(\d+)".*data-col="(\d+)"/);return m?this.children.find(el=>Number(el.dataset.row)===Number(m[1])&&Number(el.dataset.col)===Number(m[2])):null;}
+        setPointerCapture(id){this.pointer=id;}
+        hasPointerCapture(id){return this.pointer===id;}
+        releasePointerCapture(){this.pointer=null;}
+        play(){this.paused=false;return Promise.resolve();}
+        pause(){this.paused=true;}
+    }
+    const elements=new Map();for(const m of html.matchAll(/id="([^"]+)"/g))elements.set(m[1],new Element());
+    const screens=['home-screen','level-screen','game-screen'].map(id=>{const el=elements.get(id);el.id=id;el.classList.add('screen');return el;});
+    screens[0].classList.add('active');
+    const document={getElementById:id=>elements.get(id),createElement:tag=>new Element(tag),
+        querySelectorAll:s=>s==='.screen'?screens:[],querySelector:s=>s==='.screen.active'?screens.find(el=>el.classList.contains('active')):null};
+    let time=0,id=0;const timers=new Map();
+    const storage=new Map([['nightmarket-cleared-levels',legacy]]);
+    const context=vm.createContext({document,URL,URLSearchParams,console,Image:class{},
+        localStorage:{getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v)},
+        setTimeout:(fn,delay)=>{timers.set(++id,{fn,at:time+delay});return id;},clearTimeout:id=>timers.delete(id),
+        window:{location:{href:url,search:new URL(url).search},addEventListener(){},removeEventListener(){}}});
+    for(const m of html.matchAll(/<script(?: src="([^"]+)")?>([\s\S]*?)<\/script>/g)){
+        vm.runInContext(m[1]?fs.readFileSync(path.join(__dirname,'..',m[1]),'utf8'):m[2],context,{filename:m[1]||'index.html'});
+    }
+    const run=code=>vm.runInContext(code,context);
+    async function advance(ms) {
+        const end=time+ms;
+        for(;;){await Promise.resolve();await Promise.resolve();const next=[...timers].filter(([,v])=>v.at<=end).sort((a,b)=>a[1].at-b[1].at)[0];if(!next)break;timers.delete(next[0]);time=next[1].at;next[1].fn();}
+        time=end;await Promise.resolve();await Promise.resolve();
+    }
+    async function drain(){for(let i=0;i<200&&timers.size;i++)await advance(Math.max(1,Math.min(...[...timers.values()].map(t=>t.at))-time));assert.equal(timers.size,0);}
+    async function start(level=1){run(`beginLevel(${level})`);await drain();assert.equal(run('isBusy'),false);}
+    const fixture=`engine.setBoard(Array.from({length:8},(_,r)=>Array.from({length:8},(_,c)=>(r+c)%5))); engine.board[0][0]=engine.makeTile(0);engine.board[0][1]=engine.makeTile(1);engine.board[0][2]=engine.makeTile(0);engine.board[1][1]=engine.makeTile(0);board=engine.board;renderBoard();`;
+    return {run,advance,drain,start,elements,fixture,storage};
+}
+
+test('classic script page bootstraps for file and HTTP URLs',async()=>{
+    for(const url of ['file:///E:/game/index.html','http://localhost:8000/index.html?startGame=true']){
+        const h=harness(url);if(!url.includes('?'))await h.start();else await h.drain();
+        assert.equal(h.elements.get('board').children.length,64);assert.equal(h.run('movesLeft'),20);assert.equal(h.run('isBusy'),false);
+    }
+});
+test('invalid UI swap returns, consumes no step and unlocks input',async()=>{
+    const h=harness();await h.start();h.run('engine.setBoard(Array.from({length:8},(_,r)=>Array.from({length:8},(_,c)=>(r+c)%5)));board=engine.board;renderBoard();');
+    const before=h.run('JSON.stringify(board)');h.run('swapTilesAndCheck(0,0,0,1)');await h.drain();
+    assert.equal(h.run('movesLeft'),20);assert.equal(h.run('score'),0);assert.equal(h.run('isBusy'),false);assert.equal(h.run('JSON.stringify(board)'),before);
+});
+test('valid UI exchange resolves cascades and consumes exactly one step',async()=>{
+    const h=harness();await h.start();h.run(h.fixture);h.run('swapTilesAndCheck(1,1,0,1)');await h.drain();
+    assert.equal(h.run('movesLeft'),19);assert.ok(h.run('score')>=30);assert.equal(h.run('isBusy'),false);assert.equal(h.run('engine.findMatchGroups().length'),0);
+});
+test('drop animation state is removed before the next player move',async()=>{
+    const h=harness();await h.start();h.run(h.fixture);
+    h.run('engine.setRefill([2,3,4]);swapTilesAndCheck(1,1,0,1)');
+    await h.advance(590);
+    assert.ok(h.elements.get('board').children.some(el=>el.classList.contains('tile-drop-new')));
+    await h.drain();
+    assert.equal(h.run('isBusy'),false);
+    assert.ok(h.elements.get('board').children.every(el=>
+        !el.classList.contains('tile-drop')&&!el.classList.contains('tile-drop-new')));
+});
+for (const dropClass of ['tile-drop','tile-drop-new']) {
+    test(`swap clears residual ${dropClass} on just one participant`,async()=>{
+        const h=harness();await h.start();
+        h.run('engine.setBoard(Array.from({length:8},(_,r)=>Array.from({length:8},(_,c)=>(r+c)%5)));board=engine.board;renderBoard();');
+        const first=h.elements.get('board').children[0],second=h.elements.get('board').children[1];
+        first.classList.add(dropClass);
+        h.run('swapTilesAndCheck(0,0,0,1)');
+        assert.ok(!first.classList.contains(dropClass));
+        assert.ok(first.classList.contains('swapping')&&second.classList.contains('swapping'));
+        await h.advance(210);
+        assert.ok(first.classList.contains('swap-back')&&second.classList.contains('swap-back'));
+        await h.drain();
+        assert.equal(h.run('movesLeft'),20);assert.equal(h.run('isBusy'),false);
+    });
+}
+for(const delay of [0,210,600]){
+    test(`abandon during swap/clear/drop at ${delay}ms cannot mutate new game`,async()=>{
+        const h=harness();await h.start();h.run(h.fixture);h.run('swapTilesAndCheck(1,1,0,1)');await h.advance(delay);
+        h.run('goHome();beginLevel(1)');const before=h.run('JSON.stringify(board)');await h.drain();
+        assert.equal(h.run('JSON.stringify(board)'),before);assert.equal(h.run('score'),0);assert.equal(h.run('movesLeft'),20);assert.equal(h.run('isBusy'),false);assert.equal(h.run('levelOver'),false);
+        assert.equal(h.elements.get('result-overlay').classList.contains('show'),false);
+    });
+}
+test('rapid level switching and entry cancellation retain latest level',async()=>{
+    const h=harness(undefined,'5');h.run('beginLevel(1);beginLevel(2);goHome();beginLevel(5)');await h.drain();
+    assert.equal(h.run('currentLevelId'),5);assert.equal(h.run('movesLeft'),12);assert.equal(h.run('isBusy'),false);
+    assert.ok(h.elements.get('bgm-player').src.endsWith('grim_pursuit.mp3'));
+});
+test('pointer cancellation, non-primary input and duplicate swaps are ignored',async()=>{
+    const h=harness();await h.start();h.run(h.fixture);
+    h.run(`var tile=boardElement.children[9];var ev={currentTarget:tile,pointerId:1,isPrimary:true,button:0,clientX:60,clientY:60};onPointerDown(ev);onPointerDown({...ev,pointerId:2,isPrimary:false});`);
+    assert.equal(h.run('activePointerId'),1);
+    h.run('onPointerCancel(ev);onPointerUp({...ev,clientY:0})');assert.equal(h.run('isBusy'),false);assert.equal(h.run('movesLeft'),20);
+    h.run('onPointerDown(ev);onPointerUp({...ev,clientY:0});swapTilesAndCheck(1,1,0,1)');await h.drain();
+    assert.equal(h.run('movesLeft'),19);assert.equal(h.run('activePointerId'),null);
+});
+test('last-step win updates old and new progress and enables next level',async()=>{
+    const h=harness();await h.start();h.run(h.fixture);h.run('movesLeft=1;score=399;swapTilesAndCheck(1,1,0,1)');await h.drain();
+    assert.equal(h.run('movesLeft'),0);assert.equal(h.run('levelOver'),true);assert.equal(h.run('getClearedCount()'),1);
+    assert.equal(h.elements.get('result-title').textContent,'通關成功！');assert.equal(h.elements.get('btn-next-level').style.display,'block');
+    assert.equal(JSON.parse(h.storage.get('nightmarket-progress')).version,1);
+});
+test('dead board after refill is shuffled without extra score or move cost',async()=>{
+    const h=harness();await h.start();h.run(h.fixture);
+    // Controlled refill produces a known dead board after the first real clear.
+    h.run(`var realRefill=engine.clearAndRefill;engine.clearAndRefill=function(wave){const drop=realRefill(wave);engine.setBoard(Array.from({length:8},(_,r)=>Array.from({length:8},(_,c)=>(r+c)%5)));return drop;};swapTilesAndCheck(1,1,0,1);`);
+    await h.drain();assert.equal(h.run('score'),30);assert.equal(h.run('movesLeft'),19);
+    assert.ok(h.run('engine.findLegalMove()'));assert.equal(h.run('engine.findMatchGroups().length'),0);
+    assert.ok(h.elements.get('board-status').textContent.includes('已重新洗牌'));
+});
+test('all levels retain their configured goals, moves and assets',async()=>{
+    const h=harness(undefined,'5');
+    for(let level=1;level<=5;level++){await h.start(level);assert.equal(h.run('currentLevelId'),level);assert.equal(h.run('movesLeft'),[20,18,16,14,12][level-1]);}
+    const assets=h.run('LEVELS.flatMap(lv=>[lv.bg,lv.bgm]).concat(CANDY_TYPES.map(t=>t.img),[ITEM_SPRITE_URL])');
+    for(const asset of assets)assert.ok(fs.existsSync(path.join(__dirname,'..',asset)),asset);
+});

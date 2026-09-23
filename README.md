@@ -61,6 +61,16 @@ Night-market-Match-3-game/
 
 ## 🛠️ 本地開發與執行
 
+P1 已將棋盤規則拆到 `js/game-engine.js`，存檔相容處理位於 `js/progress-store.js`；仍可直接開啟 `index.html`。階段範圍與驗收方式見 [改善企劃](IMPROVEMENT_PLAN.md)。
+
+執行規則與頁面流程測試（需 Node.js，無須安裝套件）：
+
+```sh
+node --test tests/engine.test.cjs tests/page.test.cjs
+```
+
+頁面流程測試使用模擬 DOM 與可控制計時器，不取代真實瀏覽器的畫面、觸控與音樂驗收。
+
 本專案採用純原生 **HTML5 + CSS3 + Vanilla JavaScript** 開發，無須安裝額外依賴套件（Zero Dependencies）：
 
 1. Clone 本專案至本機：
