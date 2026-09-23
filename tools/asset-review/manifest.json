@@ -1,0 +1,244 @@
+{
+  "tile_size": 256,
+  "content_size": 236,
+  "assets": [
+    {
+      "name": "item-boba",
+      "source": "assets/images/item-boba.png",
+      "source_sha256": "338ba57e2e98514fb16f17057913386df0f3f2dd8547b4f16136bb2d9c0772ea",
+      "original_bytes": 247645,
+      "output_bytes": 12182,
+      "size": [
+        256,
+        256
+      ],
+      "alpha": true
+    },
+    {
+      "name": "item-sweetpotato",
+      "source": "assets/images/item-sweetpotato.png",
+      "source_sha256": "8f01caa7ac7780b79353ec59a4103cb35423a841b1e5a836063e748e5fc869ef",
+      "original_bytes": 205291,
+      "output_bytes": 16118,
+      "size": [
+        256,
+        256
+      ],
+      "alpha": true
+    },
+    {
+      "name": "item-tofu",
+      "source": "assets/images/item-tofu.png",
+      "source_sha256": "ce6c4272a996d2e34dcec9b1c98177704bdda55d67bc4c52ab708bc6d3506fd2",
+      "original_bytes": 318775,
+      "output_bytes": 18256,
+      "size": [
+        256,
+        256
+      ],
+      "alpha": true
+    },
+    {
+      "name": "item-chicken",
+      "source": "assets/images/item-chicken.png",
+      "source_sha256": "3481600722791e9fee2000a44ba48d2fdcd613bddf344b7290ed8d2f4ae664d2",
+      "original_bytes": 390477,
+      "output_bytes": 18134,
+      "size": [
+        256,
+        256
+      ],
+      "alpha": true
+    },
+    {
+      "name": "item-grilledcorn",
+      "source": "assets/images/item-grilledcorn.png",
+      "source_sha256": "7c6eb4be46d6f39d25e1b45241c04b4db2f7b2e2a121a227a73546387c7a1eb9",
+      "original_bytes": 1237624,
+      "output_bytes": 14814,
+      "size": [
+        256,
+        256
+      ],
+      "alpha": true
+    },
+    {
+      "name": "item-boba-4",
+      "source": "assets/images/item-boba-4.png",
+      "source_sha256": "9fe484895c26b37cf40cb6f2635181857af197e09ed6d29b385ca9fb0b13498b",
+      "original_bytes": 1931267,
+      "output_bytes": 21700,
+      "size": [
+        256,
+        256
+      ],
+      "alpha": true
+    },
+    {
+      "name": "item-sweetpotato-4",
+      "source": "assets/images/cutouts/item-sweetpotato-4.png",
+      "source_sha256": "74fb9b8c93d56956676c969720ffc5ce32541a772a861246c72ab7347f61d90d",
+      "original_bytes": 1879837,
+      "output_bytes": 24404,
+      "size": [
+        256,
+        256
+      ],
+      "alpha": true
+    },
+    {
+      "name": "item-tofu-4",
+      "source": "assets/images/item-tofu-4.png",
+      "source_sha256": "a230683f4e0e471b4cb44a0dac423e59bbea67e5619bef97a18c82c39aabe39a",
+      "original_bytes": 2237363,
+      "output_bytes": 29556,
+      "size": [
+        256,
+        256
+      ],
+      "alpha": true
+    },
+    {
+      "name": "item-chicken-4",
+      "source": "assets/images/cutouts/item-chicken-4.png",
+      "source_sha256": "d5d195a88994dc4bafa93ac52faaf93b8d543870a7c5a70fcf3e276849ea61a2",
+      "original_bytes": 1940800,
+      "output_bytes": 29446,
+      "size": [
+        256,
+        256
+      ],
+      "alpha": true
+    },
+    {
+      "name": "item-grilledcorn-4",
+      "source": "assets/images/item-grilledcorn-4.png",
+      "source_sha256": "7f7042e2265d12d0e777626a99032378db1661b387ce9ecf92bd18ff6874caf6",
+      "original_bytes": 1913826,
+      "output_bytes": 29158,
+      "size": [
+        256,
+        256
+      ],
+      "alpha": true
+    },
+    {
+      "name": "item-takoyaki",
+      "source": "assets/images/item-takoyaki.png",
+      "source_sha256": "44870234782731b3f34c7858b00b11ab06f87ed4c01d5ef062ab617a36246e66",
+      "original_bytes": 1394710,
+      "output_bytes": 18186,
+      "size": [
+        256,
+        256
+      ],
+      "alpha": true
+    },
+    {
+      "name": "item-marshmallow",
+      "source": "assets/images/item-marshmallow.png",
+      "source_sha256": "1a029ffeb97be8475f8983617e400df81b614ec010f6f1c081ca25b06988ef0b",
+      "original_bytes": 1336866,
+      "output_bytes": 12316,
+      "size": [
+        256,
+        256
+      ],
+      "alpha": true
+    },
+    {
+      "name": "item-oyster",
+      "source": "assets/images/item-oyster.png",
+      "source_sha256": "ed4556f89a7824e28ae46ff58de1a5fcf9b232b045c97b23391ff3d13471ef7e",
+      "original_bytes": 310218,
+      "output_bytes": 16368,
+      "size": [
+        256,
+        256
+      ],
+      "alpha": true
+    },
+    {
+      "name": "bg-dongdamen",
+      "source": "assets/images/bg-dongdamen.png",
+      "source_sha256": "3511a8d3a7ff284759598af95bde45ea106aed30d187e0da0699a0c604fabe88",
+      "original_bytes": 2873739,
+      "output_bytes": 254176,
+      "size": [
+        1536,
+        1024
+      ],
+      "alpha": false
+    },
+    {
+      "name": "bg-fengjia",
+      "source": "assets/images/bg-fengjia.png",
+      "source_sha256": "e7694c6e6a35fb91291d37d6252ba19e5b019c3406bbdd51fd440483ada95406",
+      "original_bytes": 2402248,
+      "output_bytes": 205108,
+      "size": [
+        1536,
+        1024
+      ],
+      "alpha": false
+    },
+    {
+      "name": "bg-home",
+      "source": "assets/images/bg-home.png",
+      "source_sha256": "3d79ea6932340d6736131f4753dd1a480df644a450e148cd273b0dacd27287cd",
+      "original_bytes": 2357537,
+      "output_bytes": 196506,
+      "size": [
+        1536,
+        1024
+      ],
+      "alpha": false
+    },
+    {
+      "name": "bg-huayuan",
+      "source": "assets/images/bg-huayuan.png",
+      "source_sha256": "1f7f251f2437365423ad2efc879ba303eab47e049fa9ce76575af17fbac583a1",
+      "original_bytes": 2623366,
+      "output_bytes": 244020,
+      "size": [
+        1536,
+        1024
+      ],
+      "alpha": false
+    },
+    {
+      "name": "bg-raohe",
+      "source": "assets/images/bg-raohe.png",
+      "source_sha256": "35c177c0f5555c75c315e06c9d6fe909dd996f66c4349cb0bc918d7b7d86b72d",
+      "original_bytes": 2736280,
+      "output_bytes": 274390,
+      "size": [
+        1536,
+        1024
+      ],
+      "alpha": false
+    },
+    {
+      "name": "bg-wusheng",
+      "source": "assets/images/bg-wusheng.png",
+      "source_sha256": "c7c6d96767b95e6311ba70673932f0b8c51f43f432703ee8b684208c70863d43",
+      "original_bytes": 2797336,
+      "output_bytes": 266268,
+      "size": [
+        1600,
+        900
+      ],
+      "alpha": false
+    }
+  ],
+  "sprite": {
+    "size": [
+      1280,
+      256
+    ],
+    "columns": 5,
+    "output_bytes": 76768
+  },
+  "original_total_bytes": 31135205,
+  "webp_total_bytes": 1777874
+}

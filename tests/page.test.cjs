@@ -205,3 +205,14 @@ test('P2 follows live OS motion changes and survives blocked preference storage'
     const blocked=harness(undefined,'0',{storageBlocked:true});await blocked.start();
     const select=blocked.elements.get('motion-setting');select.value='reduce';select.events.change[0]();assert.equal(blocked.run('reducedMotion()'),true);
 });
+
+test('grilled corn occupies the existing fifth food slot in game and tutorial',async()=>{
+    const h=harness();await h.start();
+    assert.equal(h.run('CANDY_TYPES[4].name'),'烤玉米');
+    assert.ok(h.run('CANDY_TYPES[4].img').endsWith('item-grilledcorn.webp'));
+    h.run('engine.board[0][0]=engine.makeTile(4);renderBoard()');
+    assert.ok(h.elements.get('board').children[0].children[1].src.endsWith('item-grilledcorn.webp'));
+    const tutorial=fs.readFileSync(path.join(__dirname,'../tutorial.html'),'utf8');
+    assert.ok(tutorial.includes('item-grilledcorn.webp'));assert.ok(!tutorial.includes('item-oyster.webp'));
+    assert.equal(h.run('ITEM_SPRITE_COLS'),5);assert.equal(h.run('ITEM_SPRITE_SIZE'),256);
+});
